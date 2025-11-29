@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 interface BannerSlide {
   image: string;
@@ -76,21 +77,22 @@ export default function BannerSlider() {
             index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
           }`}
         >
-          {/* Background Image or Gradient */}
           {!imageErrors[index] ? (
             <>
-              <img
+              <Image
                 src={slide.image}
                 alt={slide.title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
                 onError={() => handleImageError(index)}
-                loading={index === 0 ? 'eager' : 'lazy'}
+                priority={index === 0}
+                sizes="100vw"
               />
               {/* Dark Overlay for readability */}
               <div className="absolute inset-0 bg-black/40"></div>
             </>
           ) : (
-            <>
+          <>
               {/* Fallback Gradient Background */}
               <div
                 className="absolute inset-0"

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { User } from '@/lib/types';
 import logo from '@/public/image/logo.png';
@@ -47,13 +48,12 @@ export default function Navbar() {
       }`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-20">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity group">
-              <div className="relative">
-                <img src={logo.src} alt="Sedulur Tani Logo" className="w-24 h-auto" />
-       
-              </div>
-              <div>
+      {/* Logo */}
+      <Link href="/" className="flex items-center gap-3">
+        <div className="relative">
+          <Image src={logo} alt="Sedulur Tani Logo" width={96} height={96} className="w-24 h-auto" />
+        </div>
+        <div>
                 <div className={`text-2xl font-bold tracking-tight transition-colors ${
                   isScrolled ? 'text-[#308A50]' : 'text-white'
                 }`}>Sedulur Tani</div>
