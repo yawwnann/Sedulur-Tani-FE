@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { cartApi, addressApi, checkoutApi, paymentApi } from '@/lib/api';
 import { Cart, Address } from '@/lib/types';
+import Toast from '@/components/Toast';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -13,7 +15,10 @@ export default function CheckoutPage() {
   const [shippingPrice, setShippingPrice] = useState(15000);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState('');
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -38,9 +43,14 @@ export default function CheckoutPage() {
       const defaultAddr = addressRes.data.data.addresses?.find((a: Address) => a.is_default);
       if (defaultAddr) {
         setSelectedAddress(defaultAddr.id);
+      } else if (addressRes.data.data.addresses?.length > 0) {
+        setSelectedAddress(addressRes.data.data.addresses[0].id);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load checkout data');
+      setToast({
+        message: err.response?.data?.message || 'Gagal memuat data checkout',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -59,12 +69,11 @@ export default function CheckoutPage() {
 
   const handleCheckout = async () => {
     if (!selectedAddress) {
-      setError('Please select a shipping address');
+      setToast({ message: 'Silakan pilih alamat pengiriman', type: 'error' });
       return;
     }
 
     setProcessing(true);
-    setError('');
 
     try {
       // Create checkout
@@ -87,12 +96,17 @@ export default function CheckoutPage() {
       const snapToken = paymentRes.data.data.snap_token;
 
       // Redirect to Midtrans payment page
-      if (snapToken) {
+      if (snapToken && paymentRes.data.data.redirect_url) {
         window.open(paymentRes.data.data.redirect_url, '_blank');
         router.push(`/orders`);
+      } else {
+        setToast({ message: 'Gagal memproses pembayaran', type: 'error' });
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Checkout failed');
+      setToast({
+        message: err.response?.data?.message || 'Checkout gagal',
+        type: 'error',
+      });
     } finally {
       setProcessing(false);
     }
@@ -100,137 +114,213 @@ export default function CheckoutPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="min-h-screen bg-gray-50">
+        <main className="container mx-auto px-4 py-8 pt-24">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-gray-200 rounded w-1/4"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="h-64 bg-white rounded-2xl"></div>
+                <div className="h-48 bg-white rounded-2xl"></div>
+              </div>
+              <div className="lg:col-span-1">
+                <div className="h-64 bg-white rounded-2xl"></div>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!cart?.items || cart.items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <p className="text-xl text-gray-600 mb-4">Your cart is empty</p>
-        <button
-          onClick={() => router.push('/')}
-          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-        >
-          Continue Shopping
-        </button>
+      <div className="min-h-screen bg-gray-50">
+        <main className="container mx-auto px-4 py-16 pt-32 text-center">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Keranjang Kosong</h2>
+          <p className="text-gray-500 mb-8">Tidak ada item untuk diproses.</p>
+          <button
+            onClick={() => router.push('/products')}
+            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+          >
+            Mulai Belanja
+          </button>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 py-8 pt-24 pb-16">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Shipping Address */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-4">Shipping Address</h2>
-            {addresses.length === 0 ? (
-              <p className="text-gray-600">No addresses found. Please add one first.</p>
-            ) : (
-              <div className="space-y-3">
-                {addresses.map((address) => (
-                  <label
-                    key={address.id}
-                    className={`block p-4 border rounded-lg cursor-pointer ${
-                      selectedAddress === address.id ? 'border-green-600 bg-green-50' : 'border-gray-300'
-                    }`}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Shipping Address */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Alamat Pengiriman</h2>
+                <button 
+                  onClick={() => router.push('/profile?tab=addresses')}
+                  className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                >
+                  Kelola Alamat
+                </button>
+              </div>
+              
+              {addresses.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <p className="text-gray-500 mb-4">Belum ada alamat tersimpan.</p>
+                  <button
+                    onClick={() => router.push('/profile?tab=addresses')}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-emerald-700 bg-emerald-100 hover:bg-emerald-200 focus:outline-none"
                   >
-                    <input
-                      type="radio"
-                      name="address"
-                      value={address.id}
-                      checked={selectedAddress === address.id}
-                      onChange={(e) => setSelectedAddress(e.target.value)}
-                      className="mr-3"
-                    />
-                    <div className="inline-block">
-                      <p className="font-medium">{address.label}</p>
-                      <p className="text-sm">{address.recipient_name} - {address.phone}</p>
-                      <p className="text-sm text-gray-600">
-                        {address.address_line}, {address.city}, {address.province} {address.postal_code}
+                    Tambah Alamat Baru
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {addresses.map((address) => (
+                    <label
+                      key={address.id}
+                      className={`relative block p-4 border rounded-xl cursor-pointer transition-all ${
+                        selectedAddress === address.id 
+                          ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' 
+                          : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center h-5">
+                          <input
+                            type="radio"
+                            name="address"
+                            value={address.id}
+                            checked={selectedAddress === address.id}
+                            onChange={(e) => setSelectedAddress(e.target.value)}
+                            className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-gray-900">{address.label}</span>
+                            {address.is_default && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                                Utama
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{address.recipient_name} • {address.phone}</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {address.address_line}, {address.city}, {address.province} {address.postal_code}
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Order Items */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Rincian Pesanan</h2>
+              <div className="divide-y divide-gray-100">
+                {cart.items.map((item) => (
+                  <div key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
+                    <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                      <Image
+                        src={item.product.image_url || "https://via.placeholder.com/150?text=No+Image"}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 truncate">{item.product.name}</h3>
+                      <p className="text-sm text-gray-500 mb-1">{item.quantity} x Rp {item.product.price.toLocaleString('id-ID')}</p>
+                      <p className="font-bold text-emerald-600">
+                        Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
                       </p>
                     </div>
-                  </label>
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Order Items */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-4">Order Items</h2>
-            <div className="space-y-3">
-              {cart.items.map((item) => (
-                <div key={item.id} className="flex gap-4 py-3 border-b">
-                  <div className="w-16 h-16 bg-gray-200 rounded">
-                    {item.product.image_url && (
-                      <img
-                        src={item.product.image_url}
-                        alt={item.product.name}
-                        className="w-full h-full object-cover rounded"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{item.product.name}</p>
-                    <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                  </div>
-                  <p className="font-medium">
-                    Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
-                  </p>
+          {/* Order Summary */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Ringkasan Pembayaran</h2>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-gray-600">
+                  <span>Total Harga ({cart.total_items} barang)</span>
+                  <span>Rp {calculateSubtotal().toLocaleString('id-ID')}</span>
                 </div>
-              ))}
+                <div className="flex justify-between text-gray-600">
+                  <span>Biaya Pengiriman</span>
+                  <span>Rp {shippingPrice.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between text-gray-600 text-sm">
+                  <span>Biaya Layanan</span>
+                  <span>Gratis</span>
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-gray-200 pt-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-gray-900">Total Tagihan</span>
+                  <span className="text-xl font-bold text-emerald-600">
+                    Rp {calculateTotal().toLocaleString('id-ID')}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCheckout}
+                disabled={processing || addresses.length === 0}
+                className="w-full bg-emerald-600 text-white py-3.5 rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {processing ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Bayar Sekarang
+                  </>
+                )}
+              </button>
+              
+              <p className="text-xs text-gray-500 text-center mt-4">
+                Dengan melanjutkan pembayaran, Anda menyetujui Syarat & Ketentuan yang berlaku.
+              </p>
             </div>
           </div>
         </div>
+      </main>
 
-        {/* Order Summary */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-6 sticky top-4">
-            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>Rp {calculateSubtotal().toLocaleString('id-ID')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping:</span>
-                <span>Rp {shippingPrice.toLocaleString('id-ID')}</span>
-              </div>
-            </div>
-
-            <div className="border-t pt-4 mb-6">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span className="text-green-600">
-                  Rp {calculateTotal().toLocaleString('id-ID')}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleCheckout}
-              disabled={processing || addresses.length === 0}
-              className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium"
-            >
-              {processing ? 'Processing...' : 'Place Order'}
-            </button>
-          </div>
-        </div>
-      </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
