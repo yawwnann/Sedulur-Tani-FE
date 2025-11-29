@@ -232,33 +232,36 @@ export default function ProfilePage() {
       // Pre-fill location dropdowns
       // 1. Load all provinces
       const fetchedProvinces = await fetchProvinces();
-      
+
       // 2. Find province ID by name
-      const currentProvince = fetchedProvinces.find(p => p.name.toLowerCase() === address.province.toLowerCase());
-      
+      const currentProvince = fetchedProvinces.find(
+        (p: Province) => p.name.toLowerCase() === address.province.toLowerCase()
+      );
+
       if (currentProvince) {
         setSelectedProvinceId(currentProvince.id);
-        
+
         // 3. Load regencies for this province
         const fetchedRegencies = await fetchRegencies(currentProvince.id);
-        
+
         // 4. Find regency ID by name
         // Note: API might return "KABUPATEN X" or "KOTA X", but address.city might be just "X" or slightly different
         // Ideally we should store IDs, but since we store names, we try to match
-        const currentRegency = fetchedRegencies.find(r => r.name.toLowerCase() === address.city.toLowerCase());
-        
+        const currentRegency = fetchedRegencies.find(
+          (r: Regency) => r.name.toLowerCase() === address.city.toLowerCase()
+        );
+
         if (currentRegency) {
           setSelectedRegencyId(currentRegency.id);
-          
+
           // 5. Load districts for this regency
           await fetchDistricts(currentRegency.id);
-          
+
           // 6. Set district/postal_code (which seems to be the subdistrict ID in this logic)
           // The form already has postal_code set from address.postal_code
           // Ensure it matches a valid district ID
         }
       }
-
     } else {
       setEditingAddress(null);
       setAddressForm({
@@ -432,7 +435,7 @@ export default function ProfilePage() {
               <div className="space-y-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
                       {user.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -714,7 +717,7 @@ export default function ProfilePage() {
                     Nomor Telepon
                   </label>
                   <input
-                    type="tel"
+                    type="number"
                     value={profileForm.phone}
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, phone: e.target.value })
@@ -798,7 +801,7 @@ export default function ProfilePage() {
                     Nomor Telepon
                   </label>
                   <input
-                    type="tel"
+                    type="number"
                     value={addressForm.phone}
                     onChange={(e) =>
                       setAddressForm({ ...addressForm, phone: e.target.value })
