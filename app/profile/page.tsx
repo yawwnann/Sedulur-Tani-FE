@@ -133,16 +133,17 @@ export default function ProfilePage() {
     try {
       setLoadingLocations(true);
       const response = await shippingApi.getProvinces();
-      console.log("Provinces response:", response.data);
       const provincesData = response.data.data || [];
       // Filter out invalid provinces without id
       const validProvinces = provincesData.filter(
         (p: Province) => p.id && p.name
       );
       setProvinces(validProvinces);
+      return validProvinces; // Return data for use in other functions
     } catch (error) {
       console.error("Failed to fetch provinces:", error);
       setToast({ message: "Gagal memuat data provinsi", type: "error" });
+      return [];
     } finally {
       setLoadingLocations(false);
     }
@@ -152,17 +153,18 @@ export default function ProfilePage() {
     try {
       setLoadingLocations(true);
       const response = await shippingApi.getRegencies(provinceId);
-      console.log("Regencies response:", response.data);
       const regenciesData = response.data.data || [];
       // Filter out invalid regencies without id
       const validRegencies = regenciesData.filter(
         (r: Regency) => r.id && r.name
       );
       setRegencies(validRegencies);
-      setDistricts([]);
+      // setDistricts([]); // Don't clear districts here as it might be needed for editing
+      return validRegencies; // Return data
     } catch (error) {
       console.error("Failed to fetch regencies:", error);
       setToast({ message: "Gagal memuat data kota/kabupaten", type: "error" });
+      return [];
     } finally {
       setLoadingLocations(false);
     }
@@ -172,16 +174,17 @@ export default function ProfilePage() {
     try {
       setLoadingLocations(true);
       const response = await shippingApi.getDistricts(regencyId);
-      console.log("Districts response:", response.data);
       const districtsData = response.data.data || [];
       // Filter out invalid districts without id
       const validDistricts = districtsData.filter(
         (d: District) => d.id && d.name
       );
       setDistricts(validDistricts);
+      return validDistricts; // Return data
     } catch (error) {
       console.error("Failed to fetch districts:", error);
       setToast({ message: "Gagal memuat data kecamatan", type: "error" });
+      return [];
     } finally {
       setLoadingLocations(false);
     }
@@ -225,6 +228,37 @@ export default function ProfilePage() {
         postal_code: address.postal_code,
         is_default: address.is_default,
       });
+
+      // Pre-fill location dropdowns
+      // 1. Load all provinces
+      const fetchedProvinces = await fetchProvinces();
+      
+      // 2. Find province ID by name
+      const currentProvince = fetchedProvinces.find(p => p.name.toLowerCase() === address.province.toLowerCase());
+      
+      if (currentProvince) {
+        setSelectedProvinceId(currentProvince.id);
+        
+        // 3. Load regencies for this province
+        const fetchedRegencies = await fetchRegencies(currentProvince.id);
+        
+        // 4. Find regency ID by name
+        // Note: API might return "KABUPATEN X" or "KOTA X", but address.city might be just "X" or slightly different
+        // Ideally we should store IDs, but since we store names, we try to match
+        const currentRegency = fetchedRegencies.find(r => r.name.toLowerCase() === address.city.toLowerCase());
+        
+        if (currentRegency) {
+          setSelectedRegencyId(currentRegency.id);
+          
+          // 5. Load districts for this regency
+          await fetchDistricts(currentRegency.id);
+          
+          // 6. Set district/postal_code (which seems to be the subdistrict ID in this logic)
+          // The form already has postal_code set from address.postal_code
+          // Ensure it matches a valid district ID
+        }
+      }
+
     } else {
       setEditingAddress(null);
       setAddressForm({
@@ -237,10 +271,10 @@ export default function ProfilePage() {
         postal_code: "",
         is_default: false,
       });
+      // Load provinces when modal opens for new address
+      await fetchProvinces();
     }
 
-    // Load provinces when modal opens
-    await fetchProvinces();
     setIsAddressModalOpen(true);
   };
 
