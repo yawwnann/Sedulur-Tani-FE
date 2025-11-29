@@ -69,15 +69,19 @@ export default function CheckoutPage() {
     try {
       // Create checkout
       const checkoutRes = await checkoutApi.create({
-        address_id: selectedAddress,
-        shipping_price: shippingPrice,
+        addressId: selectedAddress,
+        items: cart?.items.map(item => ({
+          productId: item.product_id,
+          quantity: item.quantity
+        })) || [],
+        shippingCost: shippingPrice,
       });
 
       const checkoutId = checkoutRes.data.data.checkout.id;
 
       // Create payment
       const paymentRes = await paymentApi.create({
-        checkout_id: checkoutId,
+        checkoutId: checkoutId,
       });
 
       const snapToken = paymentRes.data.data.snap_token;

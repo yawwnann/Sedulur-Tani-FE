@@ -1,191 +1,297 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { cartApi } from '@/lib/api';
-import { Cart } from '@/lib/types';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { cartApi } from "@/lib/api";
+import { CartItem, Cart } from "@/lib/types";
+
+import Toast from "@/components/Toast";
 
 export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    fetchCart();
-  }, []);
+  const [updatingItems, setUpdatingItems] = useState<string[]>([]);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   const fetchCart = async () => {
     try {
       setLoading(true);
       const response = await cartApi.getCart();
       setCart(response.data.data.cart);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load cart');
+    } catch (error: any) {
+      console.error("Failed to fetch cart:", error);
+      if (error.response?.status === 401) {
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const updateQuantity = async (itemId: string, quantity: number) => {
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+
     try {
-      await cartApi.updateItem(itemId, { quantity });
-      fetchCart();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update quantity');
+      setUpdatingItems((prev) => [...prev, itemId]);
+      await cartApi.updateItem(itemId, { quantity: newQuantity });
+
+      // Update local state optimistically or refetch
+      // Here we'll refetch to ensure calculations are correct from backend
+      await fetchCart();
+
+      // Notify navbar to update cart count
+      window.dispatchEvent(new Event("cart-updated"));
+      setToast({
+        message: "Jumlah produk berhasil diperbarui",
+        type: "success",
+      });
+    } catch (error: any) {
+      console.error("Failed to update quantity:", error);
+      setToast({
+        message: error.response?.data?.message || "Gagal mengupdate keranjang",
+        type: "error",
+      });
+    } finally {
+      setUpdatingItems((prev) => prev.filter((id) => id !== itemId));
     }
   };
 
-  const removeItem = async (itemId: string) => {
+  const handleRemoveItem = async (itemId: string) => {
     try {
+      setUpdatingItems((prev) => [...prev, itemId]);
       await cartApi.removeItem(itemId);
-      fetchCart();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to remove item');
+      await fetchCart();
+      window.dispatchEvent(new Event("cart-updated"));
+      setToast({
+        message: "Produk berhasil dihapus dari keranjang",
+        type: "success",
+      });
+    } catch (error: any) {
+      console.error("Failed to remove item:", error);
+      setToast({
+        message: error.response?.data?.message || "Gagal menghapus item",
+        type: "error",
+      });
+    } finally {
+      setUpdatingItems((prev) => prev.filter((id) => id !== itemId));
     }
   };
 
-  const calculateTotal = () => {
-    if (!cart?.items) return 0;
-    return cart.items.reduce((total, item) => {
-      return total + item.product.price * item.quantity;
-    }, 0);
-  };
-
-  if (loading) {
+  if (loading && !cart) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
-        <p className="mt-4 text-gray-600">Loading cart...</p>
+      <div className="min-h-screen bg-gray-50">
+        <main className="container mx-auto px-4 py-8 pt-24">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
+            <div className="bg-white rounded-2xl p-6 h-64"></div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 py-8 pt-24">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          Keranjang Belanja
+        </h1>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {!cart?.items || cart.items.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-lg">
-          <p className="text-xl text-gray-600 mb-4">Your cart is empty</p>
-          <button
-            onClick={() => router.push('/')}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-          >
-            Continue Shopping
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-4">
-            {cart.items.map((item) => (
-              <div key={item.id} className="bg-white rounded-lg shadow p-4 flex gap-4">
-                <div className="w-24 h-24 bg-gray-200 rounded flex-shrink-0">
-                  {item.product.image_url ? (
-                    <img
-                      src={item.product.image_url}
+        {!cart || cart.items.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+            <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg
+                className="w-12 h-12 text-emerald-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              Keranjang Anda Kosong
+            </h2>
+            <p className="text-gray-500 mb-8">
+              Wah, keranjang belanjaanmu masih kosong nih. Yuk isi dengan
+              produk-produk segar!
+            </p>
+            <Link
+              href="/products"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
+            >
+              Mulai Belanja
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Cart Items List */}
+            <div className="flex-1 space-y-4">
+              {cart.items.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex gap-4 sm:gap-6"
+                >
+                  {/* Product Image */}
+                  <div className="relative w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                    <Image
+                      src={
+                        item.product.image_url ||
+                        "https://via.placeholder.com/150?text=No+Image"
+                      }
                       alt={item.product.name}
-                      className="w-full h-full object-cover rounded"
+                      fill
+                      className="object-cover"
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                      No Image
+                  </div>
+
+                  {/* Product Details */}
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <Link
+                          href={`/products/${item.product.id}`}
+                          className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors line-clamp-1"
+                        >
+                          {item.product.name}
+                        </Link>
+                        <p className="text-sm text-gray-500">
+                          {item.product.seller?.name || "Penjual"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={updatingItems.includes(item.id)}
+                        className="ml-4 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all disabled:opacity-50 shrink-0"
+                        title="Hapus dari keranjang"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
                     </div>
-                  )}
+
+                    <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center border border-gray-200 rounded-lg w-fit">
+                        <button
+                          onClick={() =>
+                            handleUpdateQuantity(item.id, item.quantity - 1)
+                          }
+                          disabled={
+                            item.quantity <= 1 ||
+                            updatingItems.includes(item.id)
+                          }
+                          className="px-3 py-1 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
+                        >
+                          -
+                        </button>
+                        <span className="w-10 text-center text-sm font-medium">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() =>
+                            handleUpdateQuantity(item.id, item.quantity + 1)
+                          }
+                          disabled={
+                            item.quantity >= item.product.stock ||
+                            updatingItems.includes(item.id)
+                          }
+                          className="px-3 py-1 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">Total Harga</p>
+                        <p className="text-lg font-bold text-emerald-600">
+                          Rp{" "}
+                          {(item.product.price * item.quantity).toLocaleString(
+                            "id-ID"
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">{item.product.name}</h3>
-                  <p className="text-green-600 font-bold mb-2">
-                    Rp {item.product.price.toLocaleString('id-ID')}
-                  </p>
+            {/* Order Summary */}
+            <div className="lg:w-96">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 sticky top-24">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">
+                  Ringkasan Belanja
+                </h3>
 
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                        className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() =>
-                          updateQuantity(
-                            item.id,
-                            Math.min(item.product.stock, item.quantity + 1)
-                          )
-                        }
-                        className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="text-red-600 hover:text-red-700 text-sm font-medium"
-                    >
-                      Remove
-                    </button>
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Total Item ({cart.total_items})</span>
+                    <span>Rp {cart.total_price.toLocaleString("id-ID")}</span>
+                  </div>
+                  <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-gray-900 text-lg">
+                    <span>Total Harga</span>
+                    <span className="text-emerald-600">
+                      Rp {cart.total_price.toLocaleString("id-ID")}
+                    </span>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <p className="font-bold text-lg">
-                    Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
-                  </p>
-                </div>
+                <button
+                  onClick={() => router.push("/checkout")}
+                  className="w-full bg-emerald-600 text-white py-3.5 rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40 flex items-center justify-center gap-2"
+                >
+                  Beli Sekarang
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
+                </button>
               </div>
-            ))}
-          </div>
-
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-4">
-              <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>Rp {calculateTotal().toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Items:</span>
-                  <span>{cart.items.length}</span>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 mb-4">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total:</span>
-                  <span className="text-green-600">
-                    Rp {calculateTotal().toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => router.push('/checkout')}
-                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium"
-              >
-                Proceed to Checkout
-              </button>
             </div>
           </div>
-        </div>
+        )}
+      </main>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

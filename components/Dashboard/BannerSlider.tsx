@@ -68,7 +68,7 @@ export default function BannerSlider() {
   };
 
   return (
-    <div className="relative w-full h-[600px] md:h-[700px] overflow-hidden bg-gray-900">
+    <div className="relative w-full h-[600px] md:h-[1000px] overflow-hidden bg-gray-900">
       {/* Slides */}
       {bannerSlides.map((slide, index) => (
         <div
@@ -127,7 +127,7 @@ export default function BannerSlider() {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 z-20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:scale-110"
+        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 z-20 hidden md:block hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:scale-110"
         aria-label="Previous slide"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,7 +137,7 @@ export default function BannerSlider() {
 
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 z-20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:scale-110"
+        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 z-20 hidden md:block hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:scale-110"
         aria-label="Next slide"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

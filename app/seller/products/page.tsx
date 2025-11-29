@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation';
 import { productsApi } from '@/lib/api';
 import { Product, User } from '@/lib/types';
 
+const CATEGORIES = [
+  { name: "Pilih Kategori", value: "" },
+  { name: "Beras", value: "Beras" },
+  { name: "Sayuran", value: "Sayuran" },
+  { name: "Buah-buahan", value: "Buah-buahan" },
+  { name: "Jagung", value: "Jagung" },
+  { name: "Kacang", value: "Kacang" },
+  { name: "Bumbu", value: "Bumbu" },
+  { name: "Lainnya", value: "Lainnya" },
+];
+
 export default function SellerProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
@@ -14,6 +25,7 @@ export default function SellerProductsPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    category: '',
     price: '',
     stock: '',
     weight: '',
@@ -59,6 +71,7 @@ export default function SellerProductsPage() {
       const data = {
         name: formData.name,
         description: formData.description,
+        category: formData.category || undefined,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
         weight: parseInt(formData.weight),
@@ -92,6 +105,7 @@ export default function SellerProductsPage() {
     setFormData({
       name: product.name,
       description: product.description,
+      category: product.category || '',
       price: product.price.toString(),
       stock: product.stock.toString(),
       weight: product.weight.toString(),
@@ -121,6 +135,7 @@ export default function SellerProductsPage() {
     setFormData({
       name: '',
       description: '',
+      category: '',
       price: '',
       stock: '',
       weight: '',
@@ -194,6 +209,21 @@ export default function SellerProductsPage() {
                   rows={3}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Category</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -291,6 +321,11 @@ export default function SellerProductsPage() {
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
+                {product.category && (
+                  <span className="inline-block bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full mb-2">
+                    {product.category}
+                  </span>
+                )}
                 <p className="text-gray-600 text-sm mb-2 line-clamp-2">
                   {product.description}
                 </p>
