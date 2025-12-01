@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { dashboardApi, productsApi, userApi } from "@/lib/api";
 import Toast from "@/components/shared/Toast";
+import {
+  exportToCSV,
+  exportSimpleReport,
+} from "@/lib/utils/export";
 
 interface ReportData {
   salesReport: {
@@ -117,11 +121,138 @@ export default function AdminReportsPage() {
   };
 
   const handleExport = (format: "csv" | "pdf") => {
-    // Simulate export
-    setToast({
-      message: `Laporan berhasil diekspor ke ${format.toUpperCase()}`,
-      type: "success",
-    });
+    if (!reportData) {
+      setToast({ message: "Tidak ada data untuk diekspor", type: "error" });
+      return;
+    }
+
+    try {
+      const dateRangeLabels: Record<DateRange, string> = {
+        today: "Hari Ini",
+        week: "Minggu Ini",
+        month: "Bulan Ini",
+        year: "Tahun Ini",
+        all: "Semua Waktu",
+      };
+
+      const periodLabel = dateRangeLabels[dateRange];
+
+      if (activeReport === "sales") {
+        // Export Sales Report
+        const salesData = Object.entries(reportData.salesReport.ordersByStatus).map(
+          ([status, count]) => ({
+            status: status.charAt(0).toUpperCase() + status.slice(1),
+            jumlah: count,
+          })
+        );
+
+        if (format === "csv") {
+          exportToCSV(salesData, `laporan-penjualan-${dateRange}`, [
+            { key: "status", label: "Status Pesanan" },
+            { key: "jumlah", label: "Jumlah" },
+          ]);
+        } else {
+          exportSimpleReport(`Laporan Penjualan - ${periodLabel}`, [
+            {
+              title: "Ringkasan Penjualan",
+              items: [
+                { label: "Total Pendapatan", value: formatCurrency(reportData.salesReport.totalRevenue) },
+                { label: "Total Pesanan", value: reportData.salesReport.totalOrders.toString() },
+                { label: "Rata-rata Pesanan", value: formatCurrency(reportData.salesReport.averageOrderValue) },
+              ],
+            },
+            {
+              title: "Status Pesanan",
+              items: Object.entries(reportData.salesReport.ordersByStatus).map(([status, count]) => ({
+                label: status.charAt(0).toUpperCase() + status.slice(1),
+                value: count.toString(),
+              })),
+            },
+          ]);
+        }
+      } else if (activeReport === "products") {
+        // Export Products Report
+        const productData = reportData.productReport.topProducts.map((p, index) => ({
+          no: index + 1,
+          nama: p.name,
+          terjual: p.sold,
+          pendapatan: p.revenue,
+        }));
+
+        if (format === "csv") {
+          if (productData.length === 0) {
+            // If no top products, create summary data
+            exportToCSV(
+              [
+                { metrik: "Total Produk", nilai: reportData.productReport.totalProducts },
+                { metrik: "Stok Rendah", nilai: reportData.productReport.lowStockProducts },
+                { metrik: "Stok Habis", nilai: reportData.productReport.outOfStockProducts },
+              ],
+              `laporan-produk-${dateRange}`,
+              [
+                { key: "metrik", label: "Metrik" },
+                { key: "nilai", label: "Nilai" },
+              ]
+            );
+          } else {
+            exportToCSV(productData, `laporan-produk-${dateRange}`, [
+              { key: "no", label: "No" },
+              { key: "nama", label: "Nama Produk" },
+              { key: "terjual", label: "Terjual" },
+              { key: "pendapatan", label: "Pendapatan" },
+            ]);
+          }
+        } else {
+          exportSimpleReport(`Laporan Produk - ${periodLabel}`, [
+            {
+              title: "Ringkasan Produk",
+              items: [
+                { label: "Total Produk", value: reportData.productReport.totalProducts.toString() },
+                { label: "Stok Rendah (≤10)", value: reportData.productReport.lowStockProducts.toString() },
+                { label: "Stok Habis", value: reportData.productReport.outOfStockProducts.toString() },
+              ],
+            },
+          ]);
+        }
+      } else if (activeReport === "users") {
+        // Export Users Report
+        const userData = [
+          { kategori: "Pembeli", jumlah: reportData.userReport.totalBuyers },
+          { kategori: "Penjual", jumlah: reportData.userReport.totalSellers },
+          { kategori: "Pengguna Baru (Bulan Ini)", jumlah: reportData.userReport.newUsersThisMonth },
+        ];
+
+        if (format === "csv") {
+          exportToCSV(userData, `laporan-pengguna-${dateRange}`, [
+            { key: "kategori", label: "Kategori" },
+            { key: "jumlah", label: "Jumlah" },
+          ]);
+        } else {
+          exportSimpleReport(`Laporan Pengguna - ${periodLabel}`, [
+            {
+              title: "Ringkasan Pengguna",
+              items: [
+                { label: "Total Pengguna", value: reportData.userReport.totalUsers.toString() },
+                { label: "Total Pembeli", value: reportData.userReport.totalBuyers.toString() },
+                { label: "Total Penjual", value: reportData.userReport.totalSellers.toString() },
+                { label: "Pengguna Baru Bulan Ini", value: reportData.userReport.newUsersThisMonth.toString() },
+              ],
+            },
+          ]);
+        }
+      }
+
+      setToast({
+        message: `Laporan berhasil diekspor ke ${format.toUpperCase()}`,
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      setToast({
+        message: `Gagal mengekspor laporan: ${error instanceof Error ? error.message : "Unknown error"}`,
+        type: "error",
+      });
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -649,7 +780,7 @@ export default function AdminReportsPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <div className=" rounded-xl p-6 border border-gray-200 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-500">

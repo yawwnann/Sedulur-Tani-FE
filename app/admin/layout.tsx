@@ -1,35 +1,11 @@
 'use client';
 
-import { useState, useEffect, useSyncExternalStore } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 
-type AuthStatus = 'authorized' | 'unauthorized' | 'no-user';
-
-function getAuthSnapshot(): AuthStatus {
-  const userStr = localStorage.getItem('user');
-  if (!userStr) return 'no-user';
-  
-  try {
-    const user = JSON.parse(userStr);
-    if (user.role === 'seller' || user.role === 'admin') {
-      return 'authorized';
-    }
-    return 'unauthorized';
-  } catch {
-    return 'no-user';
-  }
-}
-
-function getServerSnapshot(): AuthStatus {
-  return 'no-user';
-}
-
-function subscribe(callback: () => void) {
-  window.addEventListener('storage', callback);
-  return () => window.removeEventListener('storage', callback);
-}
+type AuthStatus = 'loading' | 'authorized' | 'unauthorized' | 'no-user';
 
 export default function AdminLayout({
   children,
@@ -38,10 +14,73 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
-  const authStatus = useSyncExternalStore(subscribe, getAuthSnapshot, getServerSnapshot);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
 
+  // Check auth status on mount (client-side only)
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      
+      // Jika tidak ada token DAN tidak ada user, baru redirect
+      if (!token && !userStr) {
+        setAuthStatus('no-user');
+        return;
+      }
+      
+      // Jika ada token tapi tidak ada user, coba parse dari token atau tunggu
+      if (token && !userStr) {
+        // Mungkin user data belum ter-set, tunggu sebentar
+        setTimeout(() => {
+          const retryUserStr = localStorage.getItem('user');
+          if (retryUserStr) {
+            try {
+              const user = JSON.parse(retryUserStr);
+              if (user.role === 'seller' || user.role === 'admin') {
+                setAuthStatus('authorized');
+              } else {
+                setAuthStatus('unauthorized');
+              }
+            } catch {
+              setAuthStatus('no-user');
+            }
+          } else {
+            setAuthStatus('no-user');
+          }
+        }, 100);
+        return;
+      }
+      
+      try {
+        const user = JSON.parse(userStr!);
+        if (user.role === 'seller' || user.role === 'admin') {
+          setAuthStatus('authorized');
+        } else {
+          setAuthStatus('unauthorized');
+        }
+      } catch {
+        setAuthStatus('no-user');
+      }
+    };
+
+    checkAuth();
+
+    // Listen for storage changes
+    window.addEventListener('storage', checkAuth);
+    
+    // Juga listen custom event untuk login/logout dari tab yang sama
+    const handleAuthChange = () => checkAuth();
+    window.addEventListener('auth-changed', handleAuthChange);
+    
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+      window.removeEventListener('auth-changed', handleAuthChange);
+    };
+  }, []);
+
+  // Handle redirects
   useEffect(() => {
     if (authStatus === 'no-user') {
       router.push('/login');
@@ -49,6 +88,18 @@ export default function AdminLayout({
       router.push('/');
     }
   }, [authStatus, router]);
+
+  // Show loading while checking auth
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (authStatus !== 'authorized') return null;
 
@@ -64,26 +115,119 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar - Always fixed */}
+      {/* Overlay untuk mobile */}
+      <div 
+        className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300 ${
+          isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsMobileOpen(false)}
+      />
+
+      {/* Sidebar - Hover to expand on desktop */}
       <aside 
-        className={`bg-[#064e3b] text-white fixed top-0 left-0 h-screen w-64 z-50 transition-transform duration-300 transform ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 overflow-y-auto border-r border-emerald-800`}
+        className="bg-[#064e3b] text-white fixed top-0 left-0 h-screen z-50 overflow-hidden border-r border-emerald-800 group/sidebar
+          w-20 hover:w-64 transition-[width] duration-300 ease-in-out hidden md:block"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="flex flex-col h-full w-64">
+          {/* Header */}
+          <div className="flex items-center h-16 px-4 border-b border-emerald-800/50 shrink-0 bg-emerald-950/30">
+            <Link href="/" className="flex items-center gap-3 overflow-hidden">      
+              <Image 
+                src="/image/logo.png" 
+                alt="Sedulur Tani" 
+                width={40} 
+                height={40}
+                className="object-contain shrink-0"
+              />
+              <span className="text-lg font-bold text-white tracking-tight whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
+                Sedulur Tani
+              </span>
+            </Link>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex-1 px-3 py-6 overflow-y-auto overflow-x-hidden">
+            <div className="mb-2 px-3 text-xs font-semibold text-emerald-400 uppercase tracking-wider whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
+              Menu Utama
+            </div>
+            <nav className="space-y-1">
+              {menuItems.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  title={item.name}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg group/item ${
+                    pathname === item.href
+                      ? 'bg-white/10 text-white font-medium shadow-sm backdrop-blur-sm border border-white/5'
+                      : 'text-emerald-100 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <svg className={`w-5 h-5 shrink-0 ${pathname === item.href ? 'text-emerald-400' : 'text-emerald-300 group-hover/item:text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                  </svg>
+                  <span className="whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
+                    {item.name}
+                  </span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          {/* User Profile & Logout */}
+          <div className="p-4 border-t border-emerald-800/50 bg-emerald-950/30">
+            <div className="flex items-center gap-3 mb-3 px-2 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
+              <div className="w-8 h-8 rounded-full bg-emerald-700 flex items-center justify-center text-xs font-bold border border-emerald-600 shrink-0">
+                A
+              </div>
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-sm font-medium text-white truncate">Admin User</p>
+                <p className="text-xs text-emerald-300 truncate">admin@sedulurtani.com</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.dispatchEvent(new Event('auth-changed'));
+                router.push('/login');
+              }}
+              title="Sign Out"
+              className="flex items-center justify-center gap-2 text-red-200 hover:text-white hover:bg-red-500/20 w-full px-4 py-2 rounded-lg text-sm font-medium"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className="whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
+                Sign Out
+              </span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar - Slide in/out */}
+      <aside 
+        className={`bg-[#064e3b] text-white fixed top-0 left-0 h-screen z-50 w-64 md:hidden
+          transition-transform duration-300 ease-in-out border-r border-emerald-800
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-emerald-800/50 shrink-0 bg-emerald-950/30">
+          <div className="flex items-center justify-between h-16 px-4 border-b border-emerald-800/50 shrink-0 bg-emerald-950/30">
             <Link href="/" className="flex items-center gap-3">      
               <Image 
-                  src="/image/logo.png" 
-                  alt="Sedulur Tani" 
-                  width={60} 
-                  height={60}
-                  className="object-contain"
-                />
+                src="/image/logo.png" 
+                alt="Sedulur Tani" 
+                width={40} 
+                height={40}
+                className="object-contain"
+              />
               <span className="text-lg font-bold text-white tracking-tight">Sedulur Tani</span>
             </Link>
-            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-emerald-200 hover:text-white">
+            <button onClick={() => setIsMobileOpen(false)} className="text-emerald-200 hover:text-white">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -98,16 +242,17 @@ export default function AdminLayout({
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                  onClick={() => setIsMobileOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg group ${
                     pathname === item.href
                       ? 'bg-white/10 text-white font-medium shadow-sm backdrop-blur-sm border border-white/5'
                       : 'text-emerald-100 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <svg className={`w-5 h-5 transition-colors ${pathname === item.href ? 'text-emerald-400' : 'text-emerald-300 group-hover:text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 shrink-0 ${pathname === item.href ? 'text-emerald-400' : 'text-emerald-300 group-hover:text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                   </svg>
-                  {item.name}
+                  <span>{item.name}</span>
                 </Link>
               ))}
             </nav>
@@ -128,9 +273,10 @@ export default function AdminLayout({
               onClick={() => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
+                window.dispatchEvent(new Event('auth-changed'));
                 router.push('/login');
               }}
-              className="flex items-center justify-center gap-2 text-red-200 hover:text-white hover:bg-red-500/20 w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+              className="flex items-center justify-center gap-2 text-red-200 hover:text-white hover:bg-red-500/20 w-full px-4 py-2 rounded-lg text-sm font-medium"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -141,17 +287,20 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main Content - Adjusted for fixed sidebar */}
-      <div className="md:ml-64 min-h-screen flex flex-col bg-gray-50">
-        {/* Mobile Header */}
+      {/* Main Content */}
+      <div className="md:ml-20 min-h-screen flex flex-col bg-gray-50">
+        {/* Header - Mobile only toggle */}
         <header className="md:hidden bg-white shadow-sm h-16 flex items-center justify-between px-4 sticky top-0 z-40">
-          <button onClick={() => setIsSidebarOpen(true)} className="text-gray-600">
+          <button 
+            onClick={() => setIsMobileOpen(true)} 
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-2 rounded-lg"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
           <span className="font-bold text-gray-900">Admin Panel</span>
-          <div className="w-6"></div>
+          <div className="w-10"></div>
         </header>
 
         {/* Main Content Area */}

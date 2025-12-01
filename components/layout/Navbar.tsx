@@ -36,9 +36,13 @@ export default function Navbar() {
     const fetchCartCount = async () => {
       try {
         const response = await cartApi.getCart();
-        setCartCount(response.data.data.cart.total_items);
-      } catch (error) {
-        console.error("Failed to fetch cart count:", error);
+        setCartCount(response.data.data.cart.total_items || 0);
+      } catch (error: any) {
+        // Jangan log error jika 401 (belum login) atau 404 (cart belum ada)
+        if (error.response?.status !== 401 && error.response?.status !== 404) {
+          console.error("Failed to fetch cart count:", error);
+        }
+        setCartCount(0);
       }
     };
 
@@ -168,6 +172,7 @@ export default function Navbar() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
+    window.dispatchEvent(new Event("auth-changed"));
     window.location.href = "/";
   };
 
@@ -272,6 +277,7 @@ export default function Navbar() {
                 onMouseLeave={handleMouseLeave}
               >
                 <button
+                  suppressHydrationWarning
                   className={`px-4 py-2 rounded-lg transition-all font-medium flex items-center gap-1 ${
                     isScrolled
                       ? "hover:bg-gray-100 text-gray-700"
@@ -392,6 +398,7 @@ export default function Navbar() {
                     />
                   </svg>
                   <input
+                    suppressHydrationWarning
                     type="text"
                     value={searchQuery}
                     onChange={handleSearchInput}
@@ -503,14 +510,14 @@ export default function Navbar() {
                             {user.name}
                           </p>
                           <p className="text-xs text-emerald-600 font-medium capitalize">
-                            {user.role === "seller" ? "Penjual" : "Pembeli"}
+                            {user.role === "seller" || user.role === "admin" ? "Admin / Penjual" : "Pembeli"}
                           </p>
                         </div>
 
-                        {user.role === "seller" && (
+                        {(user.role === "seller" || user.role === "admin") && (
                           <>
                             <Link
-                              href="/seller/products"
+                              href="/admin/products"
                               className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors"
                               onClick={() => setIsDropdownOpen(false)}
                             >
@@ -530,7 +537,7 @@ export default function Navbar() {
                               Produk Saya
                             </Link>
                             <Link
-                              href="/orders"
+                              href="/admin/orders"
                               className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors"
                               onClick={() => setIsDropdownOpen(false)}
                             >
@@ -606,7 +613,7 @@ export default function Navbar() {
 
                         <div className="border-t border-gray-100 my-2 pt-2">
                           <Link
-                            href="/profile"
+                            href={user.role === "seller" || user.role === "admin" ? "/admin/settings" : "/profile"}
                             className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors"
                             onClick={() => setIsDropdownOpen(false)}
                           >
@@ -874,14 +881,34 @@ export default function Navbar() {
               <>
                 <div className="border-t border-gray-200 my-2 pt-2">
                   <div className="px-4 py-2 text-sm font-semibold text-gray-500">
-                    {user.role === "seller" ? "Menu Penjual" : "Menu Pembeli"}
+                    {user.role === "seller" || user.role === "admin" ? "Menu Admin" : "Menu Pembeli"}
                   </div>
                 </div>
 
-                {user.role === "seller" && (
+                {(user.role === "seller" || user.role === "admin") && (
                   <>
                     <Link
-                      href="/seller/products"
+                      href="/admin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                        />
+                      </svg>
+                      <span className="font-medium">Dashboard</span>
+                    </Link>
+                    <Link
+                      href="/admin/products"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
                     >
@@ -901,7 +928,7 @@ export default function Navbar() {
                       <span className="font-medium">Produk Saya</span>
                     </Link>
                     <Link
-                      href="/orders"
+                      href="/admin/orders"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
                     >
@@ -974,7 +1001,7 @@ export default function Navbar() {
                 )}
 
                 <Link
-                  href="/profile"
+                  href={user.role === "seller" || user.role === "admin" ? "/admin/settings" : "/profile"}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
                 >

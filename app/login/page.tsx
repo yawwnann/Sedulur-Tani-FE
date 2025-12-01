@@ -49,8 +49,9 @@ export default function LoginPage() {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Trigger storage event for other components to update
+      // Trigger auth event for other components to update
       window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("auth-changed"));
 
       // Redirect based on role
       if (user.role === "seller" || user.role === "admin") {

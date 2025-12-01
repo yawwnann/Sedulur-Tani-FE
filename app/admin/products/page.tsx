@@ -5,6 +5,7 @@ import { productsApi, categoryApi } from "@/lib/api";
 import { Product, Category } from "@/lib/types";
 import Toast from "@/components/shared/Toast";
 import Image from "next/image";
+import { exportToCSV, exportToPDF } from "@/lib/utils/export";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -147,6 +148,57 @@ export default function AdminProductsPage() {
     return category ? category.name : "Unknown Category";
   };
 
+  const handleExportProducts = (format: "csv" | "pdf") => {
+    if (products.length === 0) {
+      setToast({ message: "Tidak ada data untuk diekspor", type: "error" });
+      return;
+    }
+
+    try {
+      const exportData = products.map((product, index) => ({
+        no: index + 1,
+        nama: product.name,
+        kategori: getCategoryName(product.category),
+        harga: product.price,
+        stok: product.stock,
+        berat: product.weight ? `${product.weight}g` : "-",
+      }));
+
+      if (format === "csv") {
+        exportToCSV(exportData, `produk-${new Date().toISOString().split("T")[0]}`, [
+          { key: "no", label: "No" },
+          { key: "nama", label: "Nama Produk" },
+          { key: "kategori", label: "Kategori" },
+          { key: "harga", label: "Harga (Rp)" },
+          { key: "stok", label: "Stok" },
+          { key: "berat", label: "Berat" },
+        ]);
+      } else {
+        exportToPDF(
+          "Data Produk",
+          exportData,
+          [
+            { key: "nama", label: "Nama Produk" },
+            { key: "kategori", label: "Kategori" },
+            { key: "harga", label: "Harga" },
+            { key: "stok", label: "Stok" },
+            { key: "berat", label: "Berat" },
+          ],
+          [
+            { label: "Total Produk", value: products.length.toString() },
+            { label: "Stok Rendah (≤10)", value: products.filter(p => p.stock <= 10 && p.stock > 0).length.toString() },
+            { label: "Stok Habis", value: products.filter(p => p.stock === 0).length.toString() },
+          ]
+        );
+      }
+
+      setToast({ message: `Data produk berhasil diekspor ke ${format.toUpperCase()}`, type: "success" });
+    } catch (error) {
+      console.error("Export error:", error);
+      setToast({ message: "Gagal mengekspor data", type: "error" });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header Section */}
@@ -158,25 +210,45 @@ export default function AdminProductsPage() {
               Kelola daftar produk, harga, dan stok inventaris Anda
             </p>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center px-6 py-3 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600 shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleExportProducts("csv")}
+              className="inline-flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Tambah Produk
-          </button>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              CSV
+            </button>
+            <button
+              onClick={() => handleExportProducts("pdf")}
+              className="inline-flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              PDF
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center justify-center px-6 py-3 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600 shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Tambah Produk
+            </button>
+          </div>
         </div>
       </div>
 

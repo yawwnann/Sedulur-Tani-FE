@@ -30,12 +30,16 @@ api.interceptors.response.use(
     const isAuthError = error.response?.status === 401;
     const isUserNotFoundError =
       error.response?.status === 404 && error.config?.url?.includes("/auth/me");
+    
+    // Jangan redirect jika error dari cart API (bisa jadi user belum punya cart)
+    const isCartError = error.config?.url?.includes("/cart");
 
-    if (isAuthError || isUserNotFoundError) {
+    if ((isAuthError || isUserNotFoundError) && !isCartError) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-changed"));
         window.location.href = "/login";
       }
     }

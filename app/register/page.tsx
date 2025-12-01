@@ -64,8 +64,9 @@ export default function RegisterPage() {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(user));
 
-        // Trigger storage event
+        // Trigger auth event for other components to update
         window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-changed"));
 
         // Redirect based on role
         if (user.role === 'seller' || user.role === 'admin') {
@@ -77,10 +78,11 @@ export default function RegisterPage() {
         // Fallback to login page if no token returned
         router.push("/login");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Registration failed:", err);
+      const error = err as { response?: { data?: { message?: string } } };
       setError(
-        err.response?.data?.message || "Gagal mendaftar. Silakan coba lagi."
+        error.response?.data?.message || "Gagal mendaftar. Silakan coba lagi."
       );
     } finally {
       setLoading(false);
@@ -89,7 +91,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden mt-20">
         <div className="grid md:grid-cols-2">
           {/* Left Side - Image */}
           <div className="relative bg-linear-to-br from-emerald-600 to-emerald-800 p-12 flex flex-col justify-between min-h-[800px]">

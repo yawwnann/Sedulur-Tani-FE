@@ -5,6 +5,7 @@ import { ordersApi } from "@/lib/api";
 import { Order } from "@/lib/types";
 import Toast from "@/components/shared/Toast";
 import Image from "next/image";
+import { exportToCSV, exportToPDF } from "@/lib/utils/export";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -89,6 +90,62 @@ export default function AdminOrdersPage() {
       setToast({ message: "Gagal memperbarui pengiriman", type: "error" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleExportOrders = (format: "csv" | "pdf") => {
+    if (filteredOrders.length === 0) {
+      setToast({ message: "Tidak ada data untuk diekspor", type: "error" });
+      return;
+    }
+
+    try {
+      const exportData = filteredOrders.map((order, index) => ({
+        no: index + 1,
+        id_pesanan: order.id.substring(0, 8),
+        pelanggan: order.user?.name || "-",
+        produk: order.product?.name || "-",
+        jumlah: order.quantity,
+        total: order.total_price,
+        status: getStatusLabel(order.status),
+        tanggal: new Date(order.created_at).toLocaleDateString("id-ID"),
+      }));
+
+      if (format === "csv") {
+        exportToCSV(exportData, `pesanan-${filterStatus}-${new Date().toISOString().split("T")[0]}`, [
+          { key: "no", label: "No" },
+          { key: "id_pesanan", label: "ID Pesanan" },
+          { key: "pelanggan", label: "Pelanggan" },
+          { key: "produk", label: "Produk" },
+          { key: "jumlah", label: "Jumlah" },
+          { key: "total", label: "Total (Rp)" },
+          { key: "status", label: "Status" },
+          { key: "tanggal", label: "Tanggal" },
+        ]);
+      } else {
+        exportToPDF(
+          `Laporan Pesanan - ${filterStatus === "all" ? "Semua" : getStatusLabel(filterStatus)}`,
+          exportData,
+          [
+            { key: "id_pesanan", label: "ID Pesanan" },
+            { key: "pelanggan", label: "Pelanggan" },
+            { key: "produk", label: "Produk" },
+            { key: "jumlah", label: "Qty" },
+            { key: "total", label: "Total" },
+            { key: "status", label: "Status" },
+            { key: "tanggal", label: "Tanggal" },
+          ],
+          [
+            { label: "Total Pesanan", value: filteredOrders.length.toString() },
+            { label: "Total Nilai", value: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(filteredOrders.reduce((sum, o) => sum + o.total_price, 0)) },
+          ]
+        );
+      }
+
+      setToast({ message: `Data pesanan berhasil diekspor ke ${format.toUpperCase()}`, type: "success" });
+    } catch (error) {
+      console.error("Export error:", error);
+      setToast({ message: "Gagal mengekspor data", type: "error" });
     }
   };
 
@@ -180,6 +237,25 @@ export default function AdminOrdersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
+            {/* Export Buttons */}
+            <button
+              onClick={() => handleExportOrders("csv")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              CSV
+            </button>
+            <button
+              onClick={() => handleExportOrders("pdf")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              PDF
+            </button>
           </div>
         </div>
       </div>

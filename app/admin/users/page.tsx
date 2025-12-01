@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
 import Toast from "@/components/shared/Toast";
+import { exportToCSV, exportToPDF } from "@/lib/utils/export";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -32,12 +33,35 @@ export default function AdminUsersPage() {
   });
 
   useEffect(() => {
-    fetchUsers();
-  }, [filterRole, pagination.page]);
+    const loadUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await userApi.getAll({
+          role: filterRole !== "all" ? filterRole : undefined,
+          search: searchQuery || undefined,
+          page: pagination.page,
+          limit: pagination.limit,
+        });
+        setUsers(response.data.data.users || []);
+        if (response.data.data.pagination) {
+          setPagination((prev) => ({
+            ...prev,
+            ...response.data.data.pagination,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch users:", error);
+        setToast({ message: "Gagal memuat data pengguna", type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUsers();
+  }, [filterRole, pagination.page, pagination.limit, searchQuery]);
 
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      setLoading(true);  
       const response = await userApi.getAll({
         role: filterRole !== "all" ? filterRole : undefined,
         search: searchQuery || undefined,
@@ -116,6 +140,57 @@ export default function AdminUsersPage() {
   const openDetailModal = (user: User) => {
     setSelectedUser(user);
     setShowDetailModal(true);
+  };
+
+  const handleExportUsers = (format: "csv" | "pdf") => {
+    if (users.length === 0) {
+      setToast({ message: "Tidak ada data untuk diekspor", type: "error" });
+      return;
+    }
+
+    try {
+      const exportData = users.map((user, index) => ({
+        no: index + 1,
+        nama: user.name,
+        email: user.email,
+        telepon: user.phone || "-",
+        role: getRoleLabel(user.role),
+        bergabung: formatDate(user.created_at),
+      }));
+
+      if (format === "csv") {
+        exportToCSV(exportData, `pengguna-${filterRole}-${new Date().toISOString().split("T")[0]}`, [
+          { key: "no", label: "No" },
+          { key: "nama", label: "Nama" },
+          { key: "email", label: "Email" },
+          { key: "telepon", label: "Telepon" },
+          { key: "role", label: "Role" },
+          { key: "bergabung", label: "Bergabung" },
+        ]);
+      } else {
+        exportToPDF(
+          `Data Pengguna - ${filterRole === "all" ? "Semua" : getRoleLabel(filterRole)}`,
+          exportData,
+          [
+            { key: "nama", label: "Nama" },
+            { key: "email", label: "Email" },
+            { key: "telepon", label: "Telepon" },
+            { key: "role", label: "Role" },
+            { key: "bergabung", label: "Bergabung" },
+          ],
+          [
+            { label: "Total Pengguna", value: users.length.toString() },
+            { label: "Pembeli", value: users.filter(u => u.role === "buyer").length.toString() },
+            { label: "Penjual", value: users.filter(u => u.role === "seller").length.toString() },
+          ]
+        );
+      }
+
+      setToast({ message: `Data pengguna berhasil diekspor ke ${format.toUpperCase()}`, type: "success" });
+    } catch (error) {
+      console.error("Export error:", error);
+      setToast({ message: "Gagal mengekspor data", type: "error" });
+    }
   };
 
   const getRoleBadgeClass = (role: string) => {
@@ -222,6 +297,25 @@ export default function AdminUsersPage() {
                 />
               </svg>
             </div>
+            {/* Export Buttons */}
+            <button
+              onClick={() => handleExportUsers("csv")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              CSV
+            </button>
+            <button
+              onClick={() => handleExportUsers("pdf")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              PDF
+            </button>
           </div>
         </div>
       </div>

@@ -26,8 +26,13 @@ export default function CartPage() {
       setCart(response.data.data.cart);
     } catch (error: any) {
       console.error("Failed to fetch cart:", error);
+      // Hanya redirect ke login jika benar-benar 401 unauthorized
+      // dan bukan karena cart kosong
       if (error.response?.status === 401) {
-        router.push("/login");
+        const token = localStorage.getItem("token");
+        if (!token) {
+          router.push("/login");
+        }
       }
     } finally {
       setLoading(false);
