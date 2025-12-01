@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { cartApi } from "@/lib/api";
 import { CartItem, Cart } from "@/lib/types";
 
-import Toast from "@/components/Toast";
+import Toast from "@/components/shared/Toast";
 
 export default function CartPage() {
   const router = useRouter();

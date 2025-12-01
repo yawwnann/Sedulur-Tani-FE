@@ -157,3 +157,9 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+
+/* Ensure form elements inherit font family */
+input, textarea, select, button {
+  font-family: inherit;
+}

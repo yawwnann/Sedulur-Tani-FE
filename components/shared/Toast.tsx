@@ -84,7 +84,7 @@ export default function Toast({
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-5 fade-in duration-300">
+    <div className="fixed top-4 right-4 z-9999 animate-in slide-in-from-top-5 fade-in duration-300">
       <div
         className={`flex items-center gap-4 min-w-[320px] max-w-md p-4 rounded-xl border-2 shadow-xl ${styles[type]}`}
       >

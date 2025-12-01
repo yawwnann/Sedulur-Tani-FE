@@ -126,6 +126,15 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProductsResponse {
   products: Product[];
   pagination?: PaginationMeta;

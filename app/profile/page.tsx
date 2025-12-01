@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authApi, addressApi, userApi, shippingApi } from "@/lib/api";
 import { User, Address } from "@/lib/types";
-import Toast from "@/components/Toast";
+import Toast from "@/components/shared/Toast";
 
 type TabType = "personal" | "addresses" | "settings";
 

@@ -6,9 +6,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { productsApi, cartApi } from "@/lib/api";
 import { Product } from "@/lib/types";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Toast from "@/components/Toast";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import Toast from "@/components/shared/Toast";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -467,7 +467,7 @@ export default function ProductDetailPage() {
                   href={`/products/${relatedProduct.id}`}
                   className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:border-emerald-100 transition-all duration-300 overflow-hidden group flex flex-col h-full"
                 >
-                  <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+                  <div className="relative aspect-4/5 bg-gray-100 overflow-hidden">
                     <Image
                       src={
                         relatedProduct.image_url ||
@@ -486,7 +486,7 @@ export default function ProductDetailPage() {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 flex flex-col flex-grow">
+                  <div className="p-4 flex flex-col grow">
                     <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-emerald-600 transition-colors">
                       {relatedProduct.name}
                     </h3>

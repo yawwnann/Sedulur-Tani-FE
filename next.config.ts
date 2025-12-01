@@ -12,7 +12,12 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
       },
     ],
-    domains: ["images.unsplash.com", "via.placeholder.com", "localhost"],
+    domains: [
+      "images.unsplash.com",
+      "via.placeholder.com",
+      "localhost",
+      "res.cloudinary.com",
+    ],
   },
 };
 

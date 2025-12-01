@@ -1,11 +1,10 @@
 "use client";
 
-import BannerSlider from "@/components/Dashboard/BannerSlider";
-import WeatherWidget from "@/components/Dashboard/WeatherWidget";
-import Products from "@/components/Dashboard/Products";
-import Testimonials from "@/components/Dashboard/Testimonials";
-
-import Features from "@/components/Dashboard/Features";
+import BannerSlider from "@/components/dashboard/BannerSlider";
+import WeatherWidget from "@/components/dashboard/WeatherWidget";
+import Products from "@/components/dashboard/Products";
+import Testimonials from "@/components/dashboard/Testimonials";
+import Features from "@/components/dashboard/Features";
 
 export default function Dashboard() {
   return (

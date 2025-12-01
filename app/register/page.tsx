@@ -67,7 +67,12 @@ export default function RegisterPage() {
         // Trigger storage event
         window.dispatchEvent(new Event("storage"));
 
-        router.push("/");
+        // Redirect based on role
+        if (user.role === 'seller' || user.role === 'admin') {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
       } else {
         // Fallback to login page if no token returned
         router.push("/login");
