@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ordersApi } from "@/lib/api";
 import { Order } from "@/lib/types";
 import Toast from "@/components/shared/Toast";
+import Image from "next/image";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -13,6 +14,16 @@ export default function AdminOrdersPage() {
     message: string;
     type: "success" | "error";
   } | null>(null);
+
+  // Modal states
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [shippingData, setShippingData] = useState({
+    courier_name: "",
+    tracking_number: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -24,24 +35,77 @@ export default function AdminOrdersPage() {
       const response = await ordersApi.getAll();
       setOrders(response.data.data.orders || []);
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      console.error("Failed to fetch orders:", error);
       setToast({ message: "Gagal memuat pesanan", type: "error" });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    if (!confirm(`Ubah status pesanan menjadi ${newStatus}?`)) return;
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    // If changing to shipped, show shipping modal
+    if (newStatus === "shipped") {
+      setSelectedOrder(order);
+      setShowShippingModal(true);
+      return;
+    }
+
+    if (!confirm(`Ubah status pesanan menjadi ${getStatusLabel(newStatus)}?`)) return;
 
     try {
       await ordersApi.updateStatus(orderId, { status: newStatus });
       setToast({ message: "Status pesanan diperbarui", type: "success" });
       fetchOrders();
     } catch (error) {
-      console.error('Failed to update status:', error);
+      console.error("Failed to update status:", error);
       setToast({ message: "Gagal memperbarui status", type: "error" });
     }
+  };
+
+  const handleShippingSubmit = async () => {
+    if (!selectedOrder) return;
+    if (!shippingData.courier_name.trim()) {
+      setToast({ message: "Nama ekspedisi wajib diisi", type: "error" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await ordersApi.updateStatus(selectedOrder.id, {
+        status: "shipped",
+        courier_name: shippingData.courier_name,
+        tracking_number: shippingData.tracking_number,
+      });
+      setToast({ message: "Pesanan berhasil dikirim", type: "success" });
+      setShowShippingModal(false);
+      setShippingData({ courier_name: "", tracking_number: "" });
+      setSelectedOrder(null);
+      fetchOrders();
+    } catch (error) {
+      console.error("Failed to update shipping:", error);
+      setToast({ message: "Gagal memperbarui pengiriman", type: "error" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openDetailModal = (order: Order) => {
+    setSelectedOrder(order);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedOrder(null);
+  };
+
+  const closeShippingModal = () => {
+    setShowShippingModal(false);
+    setShippingData({ courier_name: "", tracking_number: "" });
+    setSelectedOrder(null);
   };
 
   const filteredOrders =
@@ -62,7 +126,7 @@ export default function AdminOrdersPage() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending: "Menunggu Pembayaran",
+      pending: "Menunggu",
       processed: "Diproses",
       shipped: "Dikirim",
       completed: "Selesai",
@@ -71,19 +135,21 @@ export default function AdminOrdersPage() {
     return labels[status] || status;
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: "amber",
-      processed: "blue",
-      shipped: "purple",
-      completed: "emerald",
-      cancelled: "red",
-    };
-    return colors[status] || "gray";
-  };
+  const courierOptions = [
+    "JNE",
+    "J&T Express",
+    "SiCepat",
+    "Anteraja",
+    "Ninja Express",
+    "POS Indonesia",
+    "TIKI",
+    "Wahana",
+    "Lion Parcel",
+    "Lainnya",
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -121,21 +187,63 @@ export default function AdminOrdersPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: "Total Pesanan", count: orders.length, color: "slate", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
-          { label: "Pending", count: orders.filter(o => o.status === "pending").length, color: "amber", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-          { label: "Diproses", count: orders.filter(o => o.status === "processed").length, color: "blue", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" },
-          { label: "Dikirim", count: orders.filter(o => o.status === "shipped").length, color: "purple", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
-          { label: "Selesai", count: orders.filter(o => o.status === "completed").length, color: "emerald", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+          {
+            label: "Total Pesanan",
+            count: orders.length,
+            bgColor: "bg-slate-50",
+            textColor: "text-slate-600",
+          },
+          {
+            label: "Pending",
+            count: orders.filter((o) => o.status === "pending").length,
+            bgColor: "bg-amber-50",
+            textColor: "text-amber-600",
+          },
+          {
+            label: "Diproses",
+            count: orders.filter((o) => o.status === "processed").length,
+            bgColor: "bg-blue-50",
+            textColor: "text-blue-600",
+          },
+          {
+            label: "Dikirim",
+            count: orders.filter((o) => o.status === "shipped").length,
+            bgColor: "bg-purple-50",
+            textColor: "text-purple-600",
+          },
+          {
+            label: "Selesai",
+            count: orders.filter((o) => o.status === "completed").length,
+            bgColor: "bg-emerald-50",
+            textColor: "text-emerald-600",
+          },
         ].map((stat, idx) => (
-          <div key={idx} className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div
+            key={idx}
+            className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{stat.count}</p>
+                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {stat.count}
+                </p>
               </div>
-              <div className={`p-3 rounded-xl bg-${stat.color}-50`}>
-                <svg className={`w-6 h-6 text-${stat.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
+              <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                <svg
+                  className={`w-6 h-6 ${stat.textColor}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
                 </svg>
               </div>
             </div>
@@ -159,15 +267,18 @@ export default function AdminOrdersPage() {
                     ID & Tanggal
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Pelanggan
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Produk
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Total Harga
+                    Total
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Aksi
                   </th>
                 </tr>
@@ -175,73 +286,163 @@ export default function AdminOrdersPage() {
               <tbody className="divide-y divide-gray-100">
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center">
+                    <td colSpan={6} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center text-gray-500">
-                        <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        <svg
+                          className="w-16 h-16 text-gray-300 mb-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
                         </svg>
-                        <p className="text-lg font-semibold text-gray-900">Tidak ada pesanan</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          Tidak ada pesanan
+                        </p>
                         <p className="text-sm text-gray-500 mt-1">
-                          {filterStatus !== "all" ? "Coba ubah filter status untuk melihat pesanan lainnya" : "Belum ada pesanan masuk saat ini"}
+                          {filterStatus !== "all"
+                            ? "Coba ubah filter status untuk melihat pesanan lainnya"
+                            : "Belum ada pesanan masuk saat ini"}
                         </p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   filteredOrders.map((order) => (
-                    <tr key={order.id} className="group hover:bg-gray-50/50 transition-colors duration-200">
+                    <tr
+                      key={order.id}
+                      className="group hover:bg-gray-50/50 transition-colors duration-200 cursor-pointer"
+                      onClick={() => openDetailModal(order)}
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">
+                            #{order.id.substring(0, 8).toUpperCase()}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {new Date(order.created_at).toLocaleDateString(
+                              "id-ID",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              }
+                            )}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {order.user?.name || "-"}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {order.user?.email || "-"}
+                          </p>
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg bg-${getStatusColor(order.status)}-50`}>
-                            <svg className={`w-5 h-5 text-${getStatusColor(order.status)}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
+                          {order.product?.image_url && (
+                            <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                              <Image
+                                src={order.product.image_url}
+                                alt={order.product.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          )}
                           <div>
-                            <p className="text-sm font-bold text-gray-900">#{order.id.substring(0, 8).toUpperCase()}</p>
+                            <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                              {order.product?.name || "Produk tidak tersedia"}
+                            </p>
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {new Date(order.created_at).toLocaleDateString("id-ID", {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                              {order.quantity} item × Rp{" "}
+                              {order.price_each.toLocaleString("id-ID")}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{order.product?.name || "Produk tidak tersedia"}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {order.quantity} item × Rp {order.price_each.toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-base font-bold text-gray-900">
+                        <p className="text-sm font-bold text-gray-900">
                           Rp {order.total_price.toLocaleString("id-ID")}
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(order.status)}`}>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
+                            order.status
+                          )}`}
+                        >
                           {getStatusLabel(order.status)}
                         </span>
+                        {order.shipments && order.shipments[0] && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {order.shipments[0].courier_name}
+                            {order.shipments[0].tracking_number && (
+                              <span className="ml-1">
+                                • {order.shipments[0].tracking_number}
+                              </span>
+                            )}
+                          </p>
+                        )}
                       </td>
-                      <td className="px-6 py-4">
-                        <select
-                          value={order.status}
-                          onChange={(e) => updateStatus(order.id, e.target.value)}
-                          disabled={order.status === "cancelled" || order.status === "completed"}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500 bg-white font-medium"
-                        >
-                          <option value="pending" disabled>Pending</option>
-                          <option value="processed">Proses</option>
-                          <option value="shipped">Kirim</option>
-                          <option value="completed">Selesai</option>
-                          <option value="cancelled">Batalkan</option>
-                        </select>
+                      <td
+                        className="px-6 py-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openDetailModal(order)}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Lihat Detail"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
+                          <select
+                            value={order.status}
+                            onChange={(e) =>
+                              handleStatusChange(order.id, e.target.value)
+                            }
+                            disabled={
+                              order.status === "cancelled" ||
+                              order.status === "completed"
+                            }
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500 bg-white font-medium"
+                          >
+                            <option value="pending" disabled>
+                              Pending
+                            </option>
+                            <option value="processed">Proses</option>
+                            <option value="shipped">Kirim</option>
+                            <option value="completed">Selesai</option>
+                            <option value="cancelled">Batalkan</option>
+                          </select>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -251,6 +452,414 @@ export default function AdminOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Order Detail Modal */}
+      {showDetailModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Detail Pesanan
+                </h2>
+                <p className="text-sm text-gray-500">
+                  #{selectedOrder.id.substring(0, 8).toUpperCase()}
+                </p>
+              </div>
+              <button
+                onClick={closeDetailModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg
+                  className="w-5 h-5 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center justify-between">
+                <span
+                  className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${getStatusBadgeClass(
+                    selectedOrder.status
+                  )}`}
+                >
+                  {getStatusLabel(selectedOrder.status)}
+                </span>
+                <p className="text-sm text-gray-500">
+                  {new Date(selectedOrder.created_at).toLocaleDateString(
+                    "id-ID",
+                    {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}
+                </p>
+              </div>
+
+              {/* Product Info */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Produk
+                </h3>
+                <div className="flex items-center gap-4">
+                  {selectedOrder.product?.image_url && (
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-white shrink-0">
+                      <Image
+                        src={selectedOrder.product.image_url}
+                        alt={selectedOrder.product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">
+                      {selectedOrder.product?.name || "Produk tidak tersedia"}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {selectedOrder.quantity} item × Rp{" "}
+                      {selectedOrder.price_each.toLocaleString("id-ID")}
+                    </p>
+                    <p className="text-lg font-bold text-emerald-600 mt-2">
+                      Rp {selectedOrder.total_price.toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Informasi Pelanggan
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <svg
+                      className="w-5 h-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    <span className="text-gray-900">
+                      {selectedOrder.user?.name || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <svg
+                      className="w-5 h-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span className="text-gray-900">
+                      {selectedOrder.user?.email || "-"}
+                    </span>
+                  </div>
+                  {selectedOrder.user?.phone && (
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                        />
+                      </svg>
+                      <span className="text-gray-900">
+                        {selectedOrder.user.phone}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Shipping Address */}
+              {selectedOrder.user?.addresses &&
+                selectedOrder.user.addresses.length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                      Alamat Pengiriman
+                    </h3>
+                    {(() => {
+                      const address =
+                        selectedOrder.user.addresses.find(
+                          (a) => a.is_default
+                        ) || selectedOrder.user.addresses[0];
+                      return (
+                        <div className="space-y-1">
+                          <p className="font-medium text-gray-900">
+                            {address.recipient_name}
+                            <span className="ml-2 text-xs font-normal px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded">
+                              {address.label}
+                            </span>
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {address.phone}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {address.address_line}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {address.city}, {address.province}{" "}
+                            {address.postal_code}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+              {/* Shipping Info */}
+              {selectedOrder.shipments &&
+                selectedOrder.shipments.length > 0 && (
+                  <div className="bg-purple-50 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-purple-700 mb-3">
+                      Informasi Pengiriman
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Ekspedisi</span>
+                        <span className="font-medium text-gray-900">
+                          {selectedOrder.shipments[0].courier_name}
+                        </span>
+                      </div>
+                      {selectedOrder.shipments[0].tracking_number && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Nomor Resi</span>
+                          <span className="font-medium text-gray-900">
+                            {selectedOrder.shipments[0].tracking_number}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status</span>
+                        <span className="font-medium text-purple-600 capitalize">
+                          {selectedOrder.shipments[0].status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              {/* Payment Info */}
+              {selectedOrder.checkout && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    Rincian Pembayaran
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal Produk</span>
+                      <span className="text-gray-900">
+                        Rp {selectedOrder.total_price.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Ongkos Kirim</span>
+                      <span className="text-gray-900">
+                        Rp{" "}
+                        {selectedOrder.checkout.shipping_price.toLocaleString(
+                          "id-ID"
+                        )}
+                      </span>
+                    </div>
+                    <hr className="border-gray-200" />
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-gray-900">Total</span>
+                      <span className="text-emerald-600">
+                        Rp{" "}
+                        {selectedOrder.checkout.grand_total.toLocaleString(
+                          "id-ID"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4">
+              <button
+                onClick={closeDetailModal}
+                className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Modal */}
+      {showShippingModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            {/* Modal Header */}
+            <div className="border-b border-gray-100 px-6 py-4">
+              <h2 className="text-lg font-bold text-gray-900">
+                Kirim Pesanan
+              </h2>
+              <p className="text-sm text-gray-500">
+                Masukkan informasi pengiriman untuk pesanan #
+                {selectedOrder.id.substring(0, 8).toUpperCase()}
+              </p>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              {/* Courier Select */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ekspedisi <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={shippingData.courier_name}
+                  onChange={(e) =>
+                    setShippingData({
+                      ...shippingData,
+                      courier_name: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="">Pilih Ekspedisi</option>
+                  {courierOptions.map((courier) => (
+                    <option key={courier} value={courier}>
+                      {courier}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tracking Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nomor Resi{" "}
+                  <span className="text-gray-400 font-normal">(Opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={shippingData.tracking_number}
+                  onChange={(e) =>
+                    setShippingData({
+                      ...shippingData,
+                      tracking_number: e.target.value.toUpperCase(),
+                    })
+                  }
+                  placeholder="Contoh: JNE123456789"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Anda bisa menambahkan nomor resi nanti jika belum tersedia
+                </p>
+              </div>
+
+              {/* Order Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 mt-4">
+                <p className="text-sm text-gray-600">Pesanan akan dikirim ke:</p>
+                {selectedOrder.user?.addresses &&
+                  selectedOrder.user.addresses.length > 0 && (
+                    <div className="mt-2">
+                      {(() => {
+                        const address =
+                          selectedOrder.user.addresses.find(
+                            (a) => a.is_default
+                          ) || selectedOrder.user.addresses[0];
+                        return (
+                          <div className="text-sm">
+                            <p className="font-medium text-gray-900">
+                              {address.recipient_name}
+                            </p>
+                            <p className="text-gray-600">
+                              {address.address_line}, {address.city},{" "}
+                              {address.province} {address.postal_code}
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-100 px-6 py-4 flex gap-3">
+              <button
+                onClick={closeShippingModal}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleShippingSubmit}
+                disabled={isSubmitting || !shippingData.courier_name}
+                className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Kirim Pesanan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <Toast

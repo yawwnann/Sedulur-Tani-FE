@@ -132,7 +132,7 @@ export default function DashboardPage() {
   if (!stats) return null;
 
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-8">
       {/* Header with Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard Analytics</h1>

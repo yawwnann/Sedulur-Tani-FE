@@ -28,6 +28,6 @@ export const ordersApi = {
   getById: (id: string) => api.get(`/orders/${id}`),
   updateStatus: (
     id: string,
-    data: { status: string; trackingNumber?: string }
+    data: { status: string; courier_name?: string; tracking_number?: string }
   ) => api.put(`/orders/${id}/status`, data),
 };

@@ -68,6 +68,30 @@ export interface Order {
   created_at: string;
   updated_at: string;
   product?: Product;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    addresses?: Address[];
+  };
+  checkout?: {
+    id: string;
+    status: string;
+    grand_total: number;
+    shipping_price: number;
+  };
+  shipments?: Shipment[];
+}
+
+export interface Shipment {
+  id: string;
+  order_id: string;
+  courier_name: string;
+  tracking_number?: string;
+  status: "packing" | "shipping" | "delivered";
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Checkout {

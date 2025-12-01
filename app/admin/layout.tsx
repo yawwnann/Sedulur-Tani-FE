@@ -1,9 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { authApi } from '@/lib/api';
+
+type AuthStatus = 'authorized' | 'unauthorized' | 'no-user';
+
+function getAuthSnapshot(): AuthStatus {
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return 'no-user';
+  
+  try {
+    const user = JSON.parse(userStr);
+    if (user.role === 'seller' || user.role === 'admin') {
+      return 'authorized';
+    }
+    return 'unauthorized';
+  } catch {
+    return 'no-user';
+  }
+}
+
+function getServerSnapshot(): AuthStatus {
+  return 'no-user';
+}
+
+function subscribe(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+}
 
 export default function AdminLayout({
   children,
@@ -13,34 +39,18 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [authorized, setAuthorized] = useState(false);
+  
+  const authStatus = useSyncExternalStore(subscribe, getAuthSnapshot, getServerSnapshot);
 
   useEffect(() => {
-    checkAdminAuth();
-  }, []);
-
-  const checkAdminAuth = async () => {
-    try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
-        router.push('/login');
-        return;
-      }
-      
-      const user = JSON.parse(userStr);
-      if (user.role !== 'seller' && user.role !== 'admin') {
-        // Assuming seller is the admin in this context, or actual 'admin' role
-        router.push('/');
-        return;
-      }
-      
-      setAuthorized(true);
-    } catch (e) {
+    if (authStatus === 'no-user') {
       router.push('/login');
+    } else if (authStatus === 'unauthorized') {
+      router.push('/');
     }
-  };
+  }, [authStatus, router]);
 
-  if (!authorized) return null;
+  if (authStatus !== 'authorized') return null;
 
   const menuItems = [
     { name: 'Dashboard', href: '/admin', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
@@ -63,8 +73,14 @@ export default function AdminLayout({
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-emerald-800/50 shrink-0 bg-emerald-950/30">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">S</div>
+            <Link href="/" className="flex items-center gap-3">      
+              <Image 
+                  src="/image/logo.png" 
+                  alt="Sedulur Tani" 
+                  width={60} 
+                  height={60}
+                  className="object-contain"
+                />
               <span className="text-lg font-bold text-white tracking-tight">Sedulur Tani</span>
             </Link>
             <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-emerald-200 hover:text-white">
