@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { dashboardApi, productsApi, ordersApi, userApi as usersApi, categoryApi } from "@/lib/api";
+import { dashboardApi } from "@/lib/api";
 import {
-  LineChart,
   Line,
   BarChart,
   Bar,
@@ -12,11 +11,6 @@ import {
   Cell,
   AreaChart,
   Area,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -24,9 +18,101 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
-  ScatterChart,
-  Scatter,
 } from "recharts";
+
+// Type Definitions
+interface CategoryDistribution {
+  name: string;
+  value: number;
+  percentage?: string;
+  [key: string]: string | number | undefined;
+}
+
+interface MonthlyRevenue {
+  month: string;
+  revenue: number;
+  orders: number;
+}
+
+interface RecentOrder {
+  id: string;
+  buyerName: string;
+  productName: string;
+  totalPrice: number;
+  status: string;
+}
+
+interface OrdersByStatus {
+  pending: number;
+  processed: number;
+  shipped: number;
+  completed: number;
+  cancelled: number;
+}
+
+interface DailySale {
+  day: string;
+  orders: number;
+}
+
+interface UserGrowth {
+  day: string;
+  buyers: number;
+  sellers: number;
+}
+
+interface DashboardSummary {
+  totalRevenue: number;
+  totalOrders: number;
+  totalUsers: number;
+  totalProducts: number;
+  totalBuyers: number;
+  totalSellers: number;
+}
+
+interface DashboardStats {
+  summary: DashboardSummary;
+  categoryDistribution: CategoryDistribution[];
+  monthlyRevenue: MonthlyRevenue[];
+  recentOrders: RecentOrder[];
+  ordersByStatus: OrdersByStatus;
+  dailySales: DailySale[];
+  userGrowth: UserGrowth[];
+  notifications?: Notification[];
+  recentActivities?: Activity[];
+  quickStats?: QuickStats;
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  time: string;
+  type: string;
+  priority: string;
+}
+
+interface Activity {
+  id: string;
+  user: string;
+  action: string;
+  target: string;
+  time: string;
+  type: string;
+}
+
+interface QuickStats {
+  todaySales: number;
+  newUsers: number;
+  pendingOrders: number;
+  lowStock: number;
+}
+
+interface SystemHealth {
+  database: number;
+  api: number;
+  storage: number;
+  cpu: number;
+}
 
 const COLORS = [
   "#10b981",
@@ -39,33 +125,29 @@ const COLORS = [
   "#84cc16",
 ];
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+export default function AdminDashboard(): React.ReactElement {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [activeSection, setActiveSection] = useState<
     "dashboard" | "products" | "orders" | "users" | "reports" | "settings"
   >("dashboard");
-  const [selectedTimeRange, setSelectedTimeRange] = useState("30d");
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [systemHealth, setSystemHealth] = useState({
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>("30d");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [systemHealth] = useState<SystemHealth>({
     database: 98,
     api: 99,
     storage: 75,
     cpu: 45,
   });
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [quickStats, setQuickStats] = useState({
+  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
+  const [quickStats, setQuickStats] = useState<QuickStats>({
     todaySales: 0,
     newUsers: 0,
     pendingOrders: 0,
     lowStock: 0,
   });
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = async () => {
+  const fetchAllData = async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await dashboardApi.getAdminStats();
@@ -74,10 +156,10 @@ export default function AdminDashboard() {
 
       if (data.categoryDistribution) {
         const total = data.categoryDistribution.reduce(
-          (sum: number, cat: any) => sum + cat.value,
+          (sum: number, cat: CategoryDistribution) => sum + cat.value,
           0
         );
-        data.categoryDistribution.forEach((cat: any) => {
+        data.categoryDistribution.forEach((cat: CategoryDistribution) => {
           cat.percentage = total > 0 ? ((cat.value / total) * 100).toFixed(1) : "0";
         });
       }
@@ -85,7 +167,7 @@ export default function AdminDashboard() {
       // Set real data from backend
       if (data.notifications) {
         // Format time for notifications
-        const formattedNotifications = data.notifications.map((n: any) => ({
+        const formattedNotifications = data.notifications.map((n: Notification) => ({
           ...n,
           time: formatTimeAgo(n.time)
         }));
@@ -94,7 +176,7 @@ export default function AdminDashboard() {
 
       if (data.recentActivities) {
         // Format time for activities
-        const formattedActivities = data.recentActivities.map((a: any) => ({
+        const formattedActivities = data.recentActivities.map((a: Activity) => ({
           ...a,
           time: formatTimeAgo(a.time)
         }));
@@ -105,14 +187,39 @@ export default function AdminDashboard() {
         setQuickStats(data.quickStats);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch dashboard data", error);
+      console.error("Error type:", typeof error);
+      console.error("Error keys:", error && typeof error === 'object' ? Object.keys(error) : []);
+      console.error("Error string:", String(error));
+      
+      const err = error as { message?: string; code?: string; response?: { status?: number; data?: unknown }; config?: { baseURL?: string; url?: string } };
+      console.error("Error message:", err?.message);
+      console.error("Error code:", err?.code);
+      console.error("Error response:", err?.response);
+      console.error("Error config:", err?.config);
+      
+      // Show alert with error details for debugging
+      const errorMsg = `Type: ${typeof error}
+Message: ${err?.message || 'N/A'}
+Code: ${err?.code || 'N/A'}
+Status: ${err?.response?.status || 'N/A'}
+URL: ${err?.config?.baseURL || ''}${err?.config?.url || ''}
+Response Data: ${JSON.stringify(err?.response?.data || 'N/A')}
+Token exists: ${localStorage.getItem('token') ? 'YES' : 'NO'}`;
+      
+      console.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTimeAgo = (dateString: string) => {
+  useEffect(() => {
+    fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -130,23 +237,17 @@ export default function AdminDashboard() {
     return Math.floor(seconds) + " detik lalu";
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number): string => {
     return `Rp ${value.toLocaleString("id-ID")}`;
   };
 
-  const formatNumber = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value.toString();
-  };
-
-  const getHealthColor = (value: number) => {
+  const getHealthColor = (value: number): string => {
     if (value >= 90) return "text-emerald-600";
     if (value >= 70) return "text-amber-600";
     return "text-red-600";
   };
 
-  const getHealthBg = (value: number) => {
+  const getHealthBg = (value: number): string => {
     if (value >= 90) return "bg-emerald-500";
     if (value >= 70) return "bg-amber-500";
     return "bg-red-500";
@@ -163,7 +264,15 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No data available</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 p-6 bg-gray-50/50 min-h-screen">
@@ -208,7 +317,7 @@ export default function AdminDashboard() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveSection(tab.id as any)}
+              onClick={() => setActiveSection(tab.id as typeof activeSection)}
               className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap ${
                 activeSection === tab.id
                   ? "text-emerald-600 border-b-2 border-emerald-600"
@@ -355,7 +464,7 @@ export default function AdminDashboard() {
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40}>
-                    {stats.categoryDistribution?.slice(0, 6).map((entry: any, index: number) => (
+                    {stats.categoryDistribution?.slice(0, 6).map((entry: CategoryDistribution, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Bar>
@@ -386,7 +495,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {stats.recentOrders?.slice(0, 5).map((order: any) => (
+                    {stats.recentOrders?.slice(0, 5).map((order: RecentOrder) => (
                       <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">#{order.id.substring(0, 8)}</td>
                         <td className="px-6 py-4 text-sm text-gray-600">
@@ -567,7 +676,7 @@ export default function AdminDashboard() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {stats.categoryDistribution?.slice(0, 5).map((entry: any, index: number) => (
+                      {stats.categoryDistribution?.slice(0, 5).map((entry: CategoryDistribution, index: number) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>

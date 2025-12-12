@@ -8,27 +8,33 @@ import Features from "@/components/dashboard/Features";
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-linear-to-b from-gray-50 via-white to-gray-50 animate-fade-in">
       {/* Hero Banner */}
-      <div>
+      <div className="animate-slide-down">
         <BannerSlider />
       </div>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Features Section */}
-        <Features />
+        <div className="animate-slide-up-delay-1">
+          <Features />
+        </div>
 
         {/* Weather Widget Section */}
-        <section>
+        <section className="animate-slide-up-delay-2">
           <WeatherWidget />
         </section>
 
         {/* Products Section */}
-        <Products />
+        <div className="animate-slide-up-delay-3">
+          <Products />
+        </div>
 
         {/* Testimonials Section */}
-        <Testimonials />
+        <div className="animate-slide-up-delay-4">
+          <Testimonials />
+        </div>
       </div>
     </div>
   );

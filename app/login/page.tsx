@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
 import bgLogin from "@/public/image/login-bg.png";
 import { Eye, EyeOff } from "lucide-react";
+import Alert from "@/components/shared/Alert";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPasswordAlert, setShowForgotPasswordAlert] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,12 +209,16 @@ export default function LoginPage() {
                   />
                   <span className="text-sm text-gray-700">Ingat saya</span>
                 </label>
-                <Link
-                  href="/forgot-password"
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowForgotPasswordAlert(true);
+                  }}
                   className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                 >
                   Lupa kata sandi?
-                </Link>
+                </button>
               </div>
 
               {/* Login Button */}
@@ -252,6 +258,16 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Alert */}
+      {showForgotPasswordAlert && (
+        <Alert
+          title="Segera Hadir"
+          message="Fitur reset password sedang dalam pengembangan.&#10;&#10;Silakan hubungi admin untuk bantuan reset password."
+          type="warning"
+          onClose={() => setShowForgotPasswordAlert(false)}
+        />
+      )}
     </div>
   );
 }

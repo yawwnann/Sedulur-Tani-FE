@@ -400,9 +400,9 @@ export default function WeatherWidget() {
   const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="mb-12 mt-10">
+    <div className="mb-12 mt-10 animate-fade-in">
       {/* Header with Icon */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-8 animate-slide-left">
         
         <div>
           <h2 className="text-3xl font-bold text-gray-800 tracking-tight">
@@ -415,7 +415,7 @@ export default function WeatherWidget() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
         {/* Main Weather Card - Enhanced */}
-        <div className="lg:col-span-2 relative overflow-hidden rounded-3xl shadow-2xl transform hover:scale-[1.02] transition-all duration-500">
+        <div className="lg:col-span-2 relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-3xl transform hover:scale-[1.02] transition-all duration-500 animate-scale-in">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-linear-to-br from-blue-400 via-blue-500 to-blue-600"></div>
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iYSIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoNDUpIj48cGF0aCBkPSJNLTEwIDMwaDYwdjJoLTYweiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IGZpbGw9InVybCgjYSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiLz48L3N2Zz4=')] opacity-30"></div>
@@ -424,8 +424,8 @@ export default function WeatherWidget() {
           <div className="relative z-10 p-8">
             {/* Location & Time */}
             <div className="flex items-start justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 backdrop-blur-sm p-2 rounded-xl">
+              <div className="flex items-center gap-3 animate-slide-right">
+                <div className="bg-white/20 backdrop-blur-sm p-2 rounded-xl hover:bg-white/30 transition-all duration-300">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -443,9 +443,9 @@ export default function WeatherWidget() {
               </div>
               
               {/* Animated Weather Icon */}
-              <div className="relative">
+              <div className="relative animate-float">
                 <div className="absolute inset-0 bg-white/20 rounded-full blur-2xl animate-pulse"></div>
-                <div className="text-8xl relative z-10 drop-shadow-2xl animate-bounce-slow">
+                <div className="text-8xl relative z-10 drop-shadow-2xl animate-bounce-in">
                   {getWeatherIcon(weather.weatherCode)}
                 </div>
               </div>
@@ -516,20 +516,20 @@ export default function WeatherWidget() {
 
         {/* Recommendation Card - Enhanced */}
         {recommendation && (
-          <div className="relative overflow-hidden rounded-3xl shadow-2xl transform hover:scale-[1.02] transition-all duration-500">
+          <div className="relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-3xl transform hover:scale-[1.02] transition-all duration-500 animate-scale-in" style={{animationDelay: '200ms'}}>
             {/* Animated Background */}
             <div className="absolute inset-0 bg-linear-to-br from-[#308A50] via-[#3FA865] to-[#308A50]"></div>
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImEiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0zMCAzMG0tMTAgMGExMCAxMCAwIDEgMCAyMCAwYTEwIDEwIDAgMSAwLTIwIDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIuNSIgZmlsbD0ibm9uZSIgb3BhY2l0eT0iLjA1Ii8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2EpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-40"></div>
             
             {/* Decorative Elements */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl animate-float"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full blur-2xl animate-float" style={{animationDelay: '1s'}}></div>
             
             {/* Content */}
             <div className="relative z-10 p-8 flex flex-col h-full">
               {/* Header */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="bg-white/25 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+              <div className="flex items-center gap-4 mb-6 animate-slide-left" style={{animationDelay: '300ms'}}>
+                <div className="bg-white/25 backdrop-blur-sm rounded-2xl p-4 shadow-lg hover:scale-110 transition-transform duration-300">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -542,7 +542,7 @@ export default function WeatherWidget() {
 
               {/* Main Recommendation Box */}
               <div className="flex-1">
-                <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 mb-5 border-2 border-white/30 shadow-xl">
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 mb-5 border-2 border-white/30 shadow-xl hover:bg-white/20 transition-all duration-300 animate-fade-in" style={{animationDelay: '400ms'}}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className={`w-3 h-3 rounded-full ${recommendation.isGood ? 'bg-green-300' : 'bg-yellow-300'} animate-pulse`}></div>
                     <p className="text-sm text-white/90 font-semibold uppercase tracking-wider">

@@ -249,25 +249,35 @@ export default function Navbar() {
               {/* Home */}
               <Link
                 href="/"
-                className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 group ${
+                className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 group relative ${
                   isScrolled
                     ? "hover:bg-gray-100 text-gray-700"
                     : "hover:bg-white/10 text-white"
                 }`}
               >
                 <span className="font-medium">Beranda</span>
+                {pathname === "/" && (
+                  <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
+                    isScrolled ? "bg-emerald-600" : "bg-white"
+                  }`} />
+                )}
               </Link>
 
               {/* Produk */}
               <Link
                 href="/products"
-                className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 group ${
+                className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 group relative ${
                   isScrolled
                     ? "hover:bg-gray-100 text-gray-700"
                     : "hover:bg-white/10 text-white"
                 }`}
               >
                 <span className="font-medium">Produk</span>
+                {pathname === "/products" && (
+                  <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
+                    isScrolled ? "bg-emerald-600" : "bg-white"
+                  }`} />
+                )}
               </Link>
 
               {/* Kategori with Dropdown on Hover */}
@@ -278,7 +288,7 @@ export default function Navbar() {
               >
                 <button
                   suppressHydrationWarning
-                  className={`px-4 py-2 rounded-lg transition-all font-medium flex items-center gap-1 ${
+                  className={`px-4 py-2 rounded-lg transition-all font-medium flex items-center gap-1 relative ${
                     isScrolled
                       ? "hover:bg-gray-100 text-gray-700"
                       : "hover:bg-white/10 text-white"
@@ -300,6 +310,11 @@ export default function Navbar() {
                       d="M19 9l-7 7-7-7"
                     />
                   </svg>
+                  {pathname === "/categories" && (
+                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
+                      isScrolled ? "bg-emerald-600" : "bg-white"
+                    }`} />
+                  )}
                 </button>
 
                 {showCategoryMenu && (
@@ -772,7 +787,11 @@ export default function Navbar() {
             <Link
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
+                pathname === "/" 
+                  ? "bg-emerald-50 text-emerald-600 font-semibold" 
+                  : "hover:bg-gray-100 text-gray-700"
+              }`}
             >
               <svg
                 className="w-5 h-5"
@@ -788,12 +807,19 @@ export default function Navbar() {
                 />
               </svg>
               <span className="font-medium">Beranda</span>
+              {pathname === "/" && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-600 rounded-r-full" />
+              )}
             </Link>
 
             <Link
               href="/products"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
+                pathname === "/products" 
+                  ? "bg-emerald-50 text-emerald-600 font-semibold" 
+                  : "hover:bg-gray-100 text-gray-700"
+              }`}
             >
               <svg
                 className="w-5 h-5"
@@ -809,12 +835,19 @@ export default function Navbar() {
                 />
               </svg>
               <span className="font-medium">Produk</span>
+              {pathname === "/products" && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-600 rounded-r-full" />
+              )}
             </Link>
 
             <div className="space-y-1">
               <button
                 onClick={() => setIsMobileCategoryOpen(!isMobileCategoryOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors relative ${
+                  pathname === "/categories" 
+                    ? "bg-emerald-50 text-emerald-600 font-semibold" 
+                    : "hover:bg-gray-100 text-gray-700"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <svg
@@ -847,6 +880,9 @@ export default function Navbar() {
                     d="M19 9l-7 7-7-7"
                   />
                 </svg>
+                {pathname === "/categories" && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-600 rounded-r-full" />
+                )}
               </button>
 
               {isMobileCategoryOpen && (

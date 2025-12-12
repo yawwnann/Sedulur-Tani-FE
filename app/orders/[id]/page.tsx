@@ -395,77 +395,129 @@ export default function OrderDetailPage() {
                   {getStatusLabel(order.status)}
                 </span>
               </div>
-              <div className="flex gap-4 items-start py-4 border-t border-gray-100">
-                <div className="relative w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                  <Image
-                    src={
-                      order.product?.image_url ||
-                      "https://via.placeholder.com/150?text=No+Image"
-                    }
-                    alt={order.product?.name || "Product"}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-gray-900 text-lg">
-                    {order.product?.name}
-                  </h4>
-                  <p className="text-gray-500 text-sm mt-1">
-                    {order.quantity} x Rp{" "}
-                    {order.price_each.toLocaleString("id-ID")}
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
-                      Berat:{" "}
-                      {((order.product?.weight || 0) * order.quantity) / 1000}{" "}
-                      kg
-                    </span>
+              
+              {/* Display all items in this order */}
+              <div className="space-y-4">
+                {(order.items || [order]).map((item: any, index: number) => (
+                  <div key={item.id || `${order.id}-${index}`} className="flex gap-4 items-start py-4 border-t border-gray-100 first:border-t-0">
+                    <div className="relative w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                      <Image
+                        src={
+                          item.product?.image_url || order.product?.image_url ||
+                          "https://via.placeholder.com/150?text=No+Image"
+                        }
+                        alt={item.product?.name || order.product?.name || "Product"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-900 text-lg">
+                        {item.product?.name || order.product?.name}
+                      </h4>
+                      <p className="text-gray-500 text-sm mt-1">
+                        {item.quantity || order.quantity} x Rp{" "}
+                        {(item.price_each || order.price_each)?.toLocaleString("id-ID")}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                          Berat:{" "}
+                          {(((item.product?.weight || order.product?.weight) || 0) * (item.quantity || order.quantity)) / 1000}{" "}
+                          kg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-emerald-600 text-lg">
+                        Rp {(item.total_price || order.total_price)?.toLocaleString("id-ID")}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-emerald-600 text-lg">
-                    Rp {order.total_price.toLocaleString("id-ID")}
-                  </p>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Shipping Info (Mockup/Placeholder if needed) */}
-            {order.status === "shipped" && (
+            {/* Shipping Info */}
+            {(order.status === "shipped" || order.status === "completed") && order.items && order.items.length > 0 && (
               <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                 <h3 className="font-bold text-gray-900 mb-4">
                   Informasi Pengiriman
                 </h3>
-                <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Kurir</p>
-                    <p className="font-bold text-gray-900">JNE Reguler</p>
+                {/* Show shipping for first item - assuming all items in a checkout ship together */}
+                {order.items[0]?.shipments && order.items[0].shipments.length > 0 && order.items[0].shipments.map((shipment: any) => (
+                  <div key={shipment.id} className="space-y-4">
+                    <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Kurir</p>
+                        <p className="font-bold text-gray-900">{shipment.courier_name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500 mb-1">Resi</p>
+                        <p className="font-mono font-bold text-gray-900">
+                          {shipment.tracking_number || "-"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 p-3 rounded-xl">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm text-blue-800">
+                          <span className="font-semibold">Status: </span>
+                          {shipment.status === "packing" && "Sedang Dikemas"}
+                          {shipment.status === "shipping" && "Dalam Perjalanan"}
+                          {shipment.status === "delivered" && "Telah Diterima"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500 mb-1">Resi</p>
-                    <p className="font-mono font-bold text-gray-900">
-                      JP7823648234
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             )}
           </div>
 
           <div className="lg:col-span-1 space-y-6">
+            {/* Notes/Catatan */}
+            {order.checkout?.notes && (
+              <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-6 h-6 text-amber-600 shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-amber-900 mb-2">
+                      Catatan untuk Penjual
+                    </h3>
+                    <p className="text-sm text-gray-700 italic leading-relaxed">
+                      &ldquo;{order.checkout.notes}&rdquo;
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Payment Summary */}
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm sticky top-24">
               <h3 className="font-bold text-gray-900 mb-6">Rincian Harga</h3>
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>Total Harga Barang</span>
-                  <span>Rp {order.total_price.toLocaleString("id-ID")}</span>
+                  <span>Rp {(order.total_price || 0).toLocaleString("id-ID")}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Biaya Pengiriman</span>
-                  <span>Rp 0</span>{" "}
-                  {/* Note: Shipping cost is usually at Checkout level, but Order is per item. Adjust if Order model has shipping cost */}
+                  <span>Rp {(order.shipping_price || 0).toLocaleString("id-ID")}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 text-sm">
                   <span>Biaya Layanan</span>
@@ -476,7 +528,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-gray-900">Total Bayar</span>
                   <span className="text-xl font-bold text-emerald-600">
-                    Rp {order.total_price.toLocaleString("id-ID")}
+                    Rp {(order.grand_total || order.total_price || 0).toLocaleString("id-ID")}
                   </span>
                 </div>
               </div>

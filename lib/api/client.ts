@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8686";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sedulur-tani-be.vercel.app";
 
 export const api = axios.create({
   baseURL: `${API_URL}/api/v1`,

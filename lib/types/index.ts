@@ -56,6 +56,17 @@ export interface Address {
   updated_at: string;
 }
 
+export interface OrderItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  price_each: number;
+  total_price: number;
+  status: "pending" | "processed" | "shipped" | "completed" | "cancelled";
+  product?: Product;
+  shipments?: Shipment[];
+}
+
 export interface Order {
   id: string;
   checkout_id: string;
@@ -64,7 +75,9 @@ export interface Order {
   quantity: number;
   price_each: number;
   total_price: number;
-  status: "pending" | "processed" | "shipped" | "completed" | "cancelled";
+  shipping_price: number;
+  grand_total: number;
+  status: "pending" | "paid" | "processed" | "shipped" | "completed" | "cancelled" | "expired";
   created_at: string;
   updated_at: string;
   product?: Product;
@@ -80,7 +93,9 @@ export interface Order {
     status: string;
     grand_total: number;
     shipping_price: number;
+    notes?: string | null;
   };
+  items?: OrderItem[];
   shipments?: Shipment[];
 }
 
@@ -100,6 +115,7 @@ export interface Checkout {
   total_price: number;
   shipping_price: number;
   grand_total: number;
+  notes?: string | null;
   status: "pending" | "paid" | "expired";
   created_at: string;
   updated_at: string;

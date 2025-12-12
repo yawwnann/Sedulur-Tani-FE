@@ -52,7 +52,7 @@ export function ComingSoonCard({
   description = "Fitur ini sedang dalam pengembangan"
 }: { title?: string; description?: string }) {
   return (
-    <div className="flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl min-h-[300px] border border-gray-200">
+    <div className="flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 rounded-xl min-h-[300px] border border-gray-200">
       <div className="text-center p-8">
         <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

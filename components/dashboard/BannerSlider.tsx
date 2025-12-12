@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface BannerSlide {
   image: string;
@@ -115,9 +116,13 @@ export default function BannerSlider() {
                 <p className="text-lg md:text-xl text-white mb-8 drop-shadow-md">
                   {slide.description}
                 </p>
-                <button className="bg-[#308A50] hover:bg-[#276D3F] text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105">
+                <Link 
+                  href="/products"
+                  className="inline-block bg-[#308A50] hover:bg-[#276D3F] text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
+                  suppressHydrationWarning
+                >
                   Belanja Sekarang
-                </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -129,6 +134,7 @@ export default function BannerSlider() {
         onClick={prevSlide}
         className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 z-20 hidden md:block hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:scale-110"
         aria-label="Previous slide"
+        suppressHydrationWarning
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -139,6 +145,7 @@ export default function BannerSlider() {
         onClick={nextSlide}
         className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 z-20 hidden md:block hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:scale-110"
         aria-label="Next slide"
+        suppressHydrationWarning
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -157,6 +164,7 @@ export default function BannerSlider() {
                 : 'bg-white/50 w-3 h-3 hover:bg-white/70'
             }`}
             aria-label={`Go to slide ${index + 1}`}
+            suppressHydrationWarning
           />
         ))}
       </div>

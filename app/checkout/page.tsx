@@ -18,6 +18,7 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState("");
+  const [notes, setNotes] = useState("");
   const [shippingPrice, setShippingPrice] = useState(0);
   const [shippingInfo, setShippingInfo] = useState<{
     courier: string;
@@ -128,7 +129,7 @@ export default function CheckoutPage() {
     setProcessing(true);
 
     try {
-      // Create checkout
+      // Create checkout first
       const checkoutRes = await checkoutApi.create({
         addressId: selectedAddress,
         items:
@@ -137,32 +138,51 @@ export default function CheckoutPage() {
             quantity: item.quantity,
           })) || [],
         shippingCost: shippingPrice,
-        notes: "",
+        notes: notes,
         shipping_method: "Standard",
       });
 
       const checkoutId = checkoutRes.data.data.checkout.id;
 
-      // Create payment
+      // Create payment with correct field name
       const paymentRes = await paymentApi.create({
-        checkoutId: checkoutId,
+        checkout_id: checkoutId,
       });
 
       const snapToken = paymentRes.data.data.snap_token;
 
-      // Redirect to Midtrans payment page
-      if (snapToken && paymentRes.data.data.redirect_url) {
-        window.open(paymentRes.data.data.redirect_url, "_blank");
-        router.push(`/orders/success?order_id=${checkoutId}`); // Redirect to success page with order ID
+      // Open Midtrans Snap popup
+      if (snapToken) {
+        // @ts-ignore - Snap is loaded from external script
+        window.snap.pay(snapToken, {
+          onSuccess: function(result: any) {
+            console.log('Payment success:', result);
+            router.push(`/payment/success?status=success`);
+          },
+          onPending: function(result: any) {
+            console.log('Payment pending:', result);
+            router.push(`/payment/success?status=pending`);
+          },
+          onError: function(result: any) {
+            console.log('Payment error:', result);
+            setToast({ message: "Pembayaran gagal", type: "error" });
+            setProcessing(false);
+          },
+          onClose: function() {
+            console.log('Customer closed the popup without finishing payment');
+            setProcessing(false);
+          }
+        });
       } else {
         setToast({ message: "Gagal memproses pembayaran", type: "error" });
+        setProcessing(false);
       }
     } catch (err: any) {
+      console.error("Checkout error:", err);
       setToast({
         message: err.response?.data?.message || "Checkout gagal",
         type: "error",
       });
-    } finally {
       setProcessing(false);
     }
   };
@@ -343,6 +363,23 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Catatan Pesanan
+              </h2>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Tulis catatan untuk penjual (opsional)"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                rows={4}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Contoh: Kirim saat jam kerja, Jangan dibungkus kardus, dll.
+              </p>
             </div>
           </div>
 

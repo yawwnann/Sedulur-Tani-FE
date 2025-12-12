@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cartApi } from "@/lib/api";
-import { CartItem, Cart } from "@/lib/types";
+import { Cart } from "@/lib/types";
 
 import Toast from "@/components/shared/Toast";
 
@@ -19,16 +19,16 @@ export default function CartPage() {
     type: "success" | "error" | "info";
   } | null>(null);
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
       const response = await cartApi.getCart();
       setCart(response.data.data.cart);
-    } catch (error: any) {
-      console.error("Failed to fetch cart:", error);
-      // Hanya redirect ke login jika benar-benar 401 unauthorized
-      // dan bukan karena cart kosong
-      if (error.response?.status === 401) {
+    } catch (error: unknown) {
+      console.error("Failed to fetch cart:", error);  
+      if (error && typeof error === 'object' && 'response' in error && 
+          error.response && typeof error.response === 'object' && 
+          'status' in error.response && error.response.status === 401) {
         const token = localStorage.getItem("token");
         if (!token) {
           router.push("/login");
@@ -37,11 +37,11 @@ export default function CartPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchCart();
-  }, []);
+  }, [fetchCart]);
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -60,10 +60,15 @@ export default function CartPage() {
         message: "Jumlah produk berhasil diperbarui",
         type: "success",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update quantity:", error);
+      const errorMessage = error && typeof error === 'object' && 'response' in error &&
+        error.response && typeof error.response === 'object' && 'data' in error.response &&
+        error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data
+        ? String(error.response.data.message)
+        : "Gagal mengupdate keranjang";
       setToast({
-        message: error.response?.data?.message || "Gagal mengupdate keranjang",
+        message: errorMessage,
         type: "error",
       });
     } finally {
@@ -76,15 +81,15 @@ export default function CartPage() {
       setUpdatingItems((prev) => [...prev, itemId]);
       await cartApi.removeItem(itemId);
       await fetchCart();
-      window.dispatchEvent(new Event("cart-updated"));
-      setToast({
-        message: "Produk berhasil dihapus dari keranjang",
-        type: "success",
-      });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to remove item:", error);
+      const errorMessage = error && typeof error === 'object' && 'response' in error &&
+        error.response && typeof error.response === 'object' && 'data' in error.response &&
+        error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data
+        ? String(error.response.data.message)
+        : "Gagal menghapus item";
       setToast({
-        message: error.response?.data?.message || "Gagal menghapus item",
+        message: errorMessage,
         type: "error",
       });
     } finally {
@@ -94,11 +99,27 @@ export default function CartPage() {
 
   if (loading && !cart) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <main className="container mx-auto px-4 py-8 pt-24">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-            <div className="bg-white rounded-2xl p-6 h-64"></div>
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
+        <main className="container mx-auto px-4 py-8 pt-24 pb-16">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-gray-200 rounded-lg w-1/3 mb-8"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-6 shadow-sm">
+                    <div className="flex gap-4">
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-200 rounded-xl"></div>
+                      <div className="flex-1 space-y-3">
+                        <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                        <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="h-80 bg-white rounded-2xl p-6 shadow-sm"></div>
+            </div>
           </div>
         </main>
       </div>
@@ -106,17 +127,22 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto px-4 py-8 pt-24">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
-          Keranjang Belanja
-        </h1>
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
+      <main className="container mx-auto px-4 py-6 pt-20 pb-12">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Keranjang Belanja
+          </h1>
+          <p className="text-gray-600">
+            Kelola produk pilihan Anda sebelum checkout
+          </p>
+        </div>
 
         {!cart || cart.items.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
-            <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="bg-white rounded-2xl p-8 text-center shadow-lg border border-gray-100 max-w-xl mx-auto">
+            <div className="w-20 h-20 bg-linear-to-br from-emerald-50 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
               <svg
-                className="w-12 h-12 text-emerald-600"
+                className="w-10 h-10 text-emerald-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -124,7 +150,7 @@ export default function CartPage() {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
                 />
               </svg>
@@ -132,28 +158,30 @@ export default function CartPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-2">
               Keranjang Anda Kosong
             </h2>
-            <p className="text-gray-500 mb-8">
-              Wah, keranjang belanjaanmu masih kosong nih. Yuk isi dengan
-              produk-produk segar!
+            <p className="text-gray-500 mb-6">
+              Yuk isi dengan produk-produk segar dari petani lokal!
             </p>
             <Link
               href="/products"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent font-semibold rounded-xl text-white bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-lg shadow-emerald-600/25"
             >
-              Mulai Belanja
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              Mulai Belanja Sekarang
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items List */}
-            <div className="flex-1 space-y-4">
+            <div className="lg:col-span-2 space-y-4">
               {cart.items.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex gap-4 sm:gap-6"
+                  className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-300 flex gap-4 group"
                 >
                   {/* Product Image */}
-                  <div className="relative w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-linear-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden shrink-0 shadow-sm">
                     <Image
                       src={
                         item.product.image_url ||
@@ -161,7 +189,7 @@ export default function CartPage() {
                       }
                       alt={item.product.name}
                       fill
-                      className="object-cover"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
 
@@ -171,13 +199,23 @@ export default function CartPage() {
                       <div className="flex-1">
                         <Link
                           href={`/products/${item.product.id}`}
-                          className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors line-clamp-1"
+                          className="text-lg font-bold text-gray-900 hover:text-emerald-600 transition-colors line-clamp-2"
                         >
                           {item.product.name}
                         </Link>
-                        <p className="text-sm text-gray-500">
-                          {item.product.seller?.name || "Penjual"}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          <p className="text-xs text-gray-500">
+                            {item.product.seller?.name || "Penjual"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md font-medium">
+                            Rp {item.product.price.toLocaleString("id-ID")}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => handleRemoveItem(item.id)}
@@ -201,44 +239,46 @@ export default function CartPage() {
                       </button>
                     </div>
 
-                    <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center border border-gray-200 rounded-lg w-fit">
-                        <button
-                          onClick={() =>
-                            handleUpdateQuantity(item.id, item.quantity - 1)
-                          }
-                          disabled={
-                            item.quantity <= 1 ||
-                            updatingItems.includes(item.id)
-                          }
-                          className="px-3 py-1 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
-                        >
-                          -
-                        </button>
-                        <span className="w-10 text-center text-sm font-medium">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() =>
-                            handleUpdateQuantity(item.id, item.quantity + 1)
-                          }
-                          disabled={
-                            item.quantity >= item.product.stock ||
-                            updatingItems.includes(item.id)
-                          }
-                          className="px-3 py-1 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
-                        >
-                          +
-                        </button>
+                    <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-gray-50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-medium">Qty:</span>
+                        <div className="flex items-center border border-emerald-200 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() =>
+                              handleUpdateQuantity(item.id, item.quantity - 1)
+                            }
+                            disabled={
+                              item.quantity <= 1 ||
+                              updatingItems.includes(item.id)
+                            }
+                            className="px-3 py-1 hover:bg-emerald-50 text-emerald-600 font-bold transition-colors disabled:opacity-50"
+                          >
+                            −
+                          </button>
+                          <span className="w-10 text-center text-sm font-bold text-gray-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() =>
+                              handleUpdateQuantity(item.id, item.quantity + 1)
+                            }
+                            disabled={
+                              item.quantity >= item.product.stock ||
+                              updatingItems.includes(item.id)
+                            }
+                            className="px-3 py-1 hover:bg-emerald-50 text-emerald-600 font-bold transition-colors disabled:opacity-50"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">Total Harga</p>
-                        <p className="text-lg font-bold text-emerald-600">
-                          Rp{" "}
-                          {(item.product.price * item.quantity).toLocaleString(
-                            "id-ID"
-                          )}
-                        </p>
+                        <p className="text-xs text-gray-500 mb-1">Total</p>
+                        <div className="bg-linear-to-r from-emerald-600 to-emerald-700 text-white px-3 py-1.5 rounded-lg shadow-sm">
+                          <p className="text-sm font-bold">
+                            Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -247,44 +287,42 @@ export default function CartPage() {
             </div>
 
             {/* Order Summary */}
-            <div className="lg:w-96">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 sticky top-24">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">
+            <div className="lg:col-span-1">
+              <div className="bg-linear-to-br from-white to-gray-50 rounded-2xl p-6 shadow-xl border border-gray-100 sticky top-24">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
                   Ringkasan Belanja
                 </h3>
 
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Total Item ({cart.total_items})</span>
-                    <span>Rp {cart.total_price.toLocaleString("id-ID")}</span>
+                  <div className="flex justify-between items-center py-2 px-3 bg-white rounded-lg border border-gray-100">
+                    <span className="text-gray-600">Total Item</span>
+                    <span className="font-bold text-gray-900">{cart.total_items} produk</span>
                   </div>
-                  <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-gray-900 text-lg">
-                    <span>Total Harga</span>
-                    <span className="text-emerald-600">
-                      Rp {cart.total_price.toLocaleString("id-ID")}
-                    </span>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-emerald-800 font-bold">Total Harga</span>
+                      <span className="text-xl font-bold text-emerald-700">
+                        Rp {cart.total_price.toLocaleString("id-ID")}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <button
                   onClick={() => router.push("/checkout")}
-                  className="w-full bg-emerald-600 text-white py-3.5 rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40 flex items-center justify-center gap-2"
+                  className="w-full bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-3 rounded-xl transition-all duration-300 font-bold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
                 >
-                  Beli Sekarang
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 8l4 4m0 0l-4 4m4-4H3"
-                    />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.6 8M7 13v6a1 1 0 001 1h9a1 1 0 001-1v-6M7 13l-1.6-8" />
                   </svg>
+                  Lanjut ke Checkout
                 </button>
+                
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-500">
+                    🔒 Pembayaran aman
+                  </p>
+                </div>
               </div>
             </div>
           </div>

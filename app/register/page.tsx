@@ -23,6 +23,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -37,12 +38,12 @@ export default function RegisterPage() {
     setError("");
 
     if (!agreeTerms) {
-      alert("Anda harus menyetujui syarat dan ketentuan");
+      setError("Anda harus menyetujui syarat dan ketentuan");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Password tidak cocok");
+      setError("Password dan konfirmasi password tidak cocok");
       return;
     }
 

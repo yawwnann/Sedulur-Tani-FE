@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { productsApi, cartApi } from "@/lib/api";
 import { Product, PaginationMeta } from "@/lib/types";
+import Alert from "@/components/shared/Alert";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -15,6 +16,8 @@ function ProductsContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'error' });
 
   // Filters
   const [search, setSearch] = useState("");
@@ -112,13 +115,15 @@ function ProductsContent() {
         productId: productId,
         quantity: 1,
       });
-      alert("Produk berhasil ditambahkan ke keranjang!");
-      // Refresh cart count in navbar (handled by window storage event or context usually,
-      // but for now we rely on page refresh or simple alert)
+      setAlertConfig({ title: 'Berhasil', message: 'Produk berhasil ditambahkan ke keranjang!', type: 'success' });
+      setShowAlert(true);
+      // Trigger cart update event
+      window.dispatchEvent(new Event("cart-updated"));
       window.dispatchEvent(new Event("storage"));
     } catch (error: any) {
       console.error("Failed to add to cart:", error);
-      alert(error.response?.data?.message || "Gagal menambahkan ke keranjang");
+      setAlertConfig({ title: 'Gagal', message: error.response?.data?.message || 'Gagal menambahkan ke keranjang', type: 'error' });
+      setShowAlert(true);
     } finally {
       setAddingToCart(null);
     }
@@ -463,6 +468,16 @@ function ProductsContent() {
             </div>
           )}
       </main>
+
+      {/* Alert Component */}
+      {showAlert && (
+        <Alert
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onClose={() => setShowAlert(false)}
+        />
+      )}
     </div>
   );
 }

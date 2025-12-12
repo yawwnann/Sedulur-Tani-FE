@@ -19,15 +19,17 @@ export default function Testimonials() {
     },
   ];
   return (
-    <section className="py-16 lg:py-20">
+    <section className="py-16 lg:py-20 animate-fade-in">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2 animate-bounce-in">
             Testimoni Pelanggan
           </h2>
-          <p className="text-gray-600">Apa kata mereka tentang Sedulur Tani</p>
+          <p className="text-gray-600 animate-fade-in-delay-1">Apa kata mereka tentang Sedulur Tani</p>
         </div>
-        <InfiniteMovingCards items={testimonials} />
+        <div className="animate-slide-up-delay-1">
+          <InfiniteMovingCards items={testimonials} />
+        </div>
       </div>
     </section>
   );

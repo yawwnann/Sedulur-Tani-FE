@@ -14,6 +14,9 @@ export default function AdminProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error";
@@ -27,7 +30,6 @@ export default function AdminProductsPage() {
     stock: "",
     category: "",
   });
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -37,9 +39,17 @@ export default function AdminProductsPage() {
   const fetchProducts = async () => {
     try {
       const response = await productsApi.getAll();
-      setProducts(response.data.data.products || []);
-    } catch (error) {
+      // Handle different response structures
+      const productsData = response.data?.data?.products || response.data?.products || [];
+      setProducts(productsData);
+    } catch (error: unknown) {
       console.error("Failed to fetch products:", error);
+      const errorResponse = error as { response?: { data?: { message?: string } }; message?: string };
+      console.error("Error response:", errorResponse.response?.data);
+      setToast({ 
+        message: `Gagal memuat produk: ${errorResponse.response?.data?.message || errorResponse.message || 'Unknown error'}`, 
+        type: "error" 
+      });
     } finally {
       setLoading(false);
     }
@@ -71,6 +81,7 @@ export default function AdminProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     const data = new FormData();
     data.append("name", formData.name);
     data.append("description", formData.description);
@@ -94,6 +105,8 @@ export default function AdminProductsPage() {
     } catch (error) {
       console.error("Failed to save product:", error);
       setToast({ message: "Gagal menyimpan produk", type: "error" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -134,12 +147,14 @@ export default function AdminProductsPage() {
       category: product.category || "",
     });
     setSelectedImage(null);
+    setCurrentImageUrl(product.image_url || null);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentId(null);
+    setCurrentImageUrl(null);
   };
 
   const getCategoryName = (categoryId?: string) => {
@@ -620,49 +635,137 @@ export default function AdminProductsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Gambar Produk
                     </label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-emerald-500 transition-colors bg-gray-50">
-                      <div className="space-y-1 text-center">
-                        <svg
-                          className="mx-auto h-12 w-12 text-gray-400"
-                          stroke="currentColor"
-                          fill="none"
-                          viewBox="0 0 48 48"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                            strokeWidth={2}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                    {(selectedImage || currentImageUrl) ? (
+                      <div className="group">
+                        <div className="relative w-full h-64 rounded-xl overflow-hidden border-2 border-emerald-500 bg-gray-50">
+                          <Image
+                            src={selectedImage ? URL.createObjectURL(selectedImage) : currentImageUrl!}
+                            alt="Preview"
+                            fill
+                            className="object-contain"
                           />
-                        </svg>
-                        <div className="flex text-sm text-gray-600 justify-center">
+                          {/* Overlay Hover */}
+                          <div className="absolute inset-0 bg-black/0 hover:bg-black/60 transition-all duration-200 flex items-center justify-center opacity-0 hover:opacity-100">
+                            <div className="flex gap-3">
+                              <label
+                                htmlFor="file-upload-replace"
+                                className="cursor-pointer px-4 py-2.5 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center gap-2 shadow-lg"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Ganti Gambar
+                                <input
+                                  id="file-upload-replace"
+                                  name="file-upload-replace"
+                                  type="file"
+                                  className="sr-only"
+                                  onChange={handleFileChange}
+                                  accept="image/*"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedImage(null);
+                                  setCurrentImageUrl(null);
+                                }}
+                                className="px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center gap-2 shadow-lg"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Hapus
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Info File */}
+                        <div className="mt-3 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {selectedImage ? selectedImage.name : "Gambar dari server"}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {selectedImage ? `${(selectedImage.size / 1024).toFixed(2)} KB` : "Gambar saat ini"}
+                              </p>
+                            </div>
+                          </div>
+                          <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        
+                        {/* Tombol Ubah Gambar - Selalu Terlihat */}
+                        <div className="mt-3">
                           <label
-                            htmlFor="file-upload"
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-emerald-600 hover:text-emerald-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-emerald-500"
+                            htmlFor="file-upload-button"
+                            className="w-full cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-md"
                           >
-                            <span>Upload file</span>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Ubah Gambar Produk
                             <input
-                              id="file-upload"
-                              name="file-upload"
+                              id="file-upload-button"
+                              name="file-upload-button"
                               type="file"
                               className="sr-only"
                               onChange={handleFileChange}
                               accept="image/*"
                             />
                           </label>
-                          <p className="pl-1">atau drag and drop</p>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          PNG, JPG, GIF up to 10MB
-                        </p>
-                        {selectedImage && (
-                          <p className="text-sm text-emerald-600 font-medium mt-2">
-                            File terpilih: {selectedImage.name}
-                          </p>
-                        )}
                       </div>
-                    </div>
+                    ) : (
+                      // Upload Mode
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-emerald-500 transition-colors bg-gray-50">
+                        <div className="space-y-1 text-center">
+                          <svg
+                            className="mx-auto h-12 w-12 text-gray-400"
+                            stroke="currentColor"
+                            fill="none"
+                            viewBox="0 0 48 48"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          <div className="flex text-sm text-gray-600 justify-center">
+                            <label
+                              htmlFor="file-upload"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-emerald-600 hover:text-emerald-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-emerald-500 px-2"
+                            >
+                              <span>Upload file</span>
+                              <input
+                                id="file-upload"
+                                name="file-upload"
+                                type="file"
+                                className="sr-only"
+                                onChange={handleFileChange}
+                                accept="image/*"
+                              />
+                            </label>
+                            <p className="pl-1">atau drag and drop</p>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            PNG, JPG, GIF hingga 10MB
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                 
                   </div>
                 </div>
               </form>
@@ -672,16 +775,28 @@ export default function AdminProductsPage() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-white hover:shadow-sm font-medium transition-all"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-white hover:shadow-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 form="productForm"
-                className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-all shadow-lg shadow-emerald-600/20"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[150px] justify-center"
               >
-                {isEditing ? "Simpan Perubahan" : "Simpan Produk"}
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <span>{isEditing ? "Simpan Perubahan" : "Simpan Produk"}</span>
+                )}
               </button>
             </div>
           </div>

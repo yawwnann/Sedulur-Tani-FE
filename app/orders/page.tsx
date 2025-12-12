@@ -41,6 +41,7 @@ export default function OrdersPage() {
       shipped: 'bg-purple-100 text-purple-700 border-purple-200',
       completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
       cancelled: 'bg-red-100 text-red-700 border-red-200',
+      paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     };
     return statusClasses[status] || 'bg-gray-100 text-gray-700 border-gray-200';
   };
@@ -51,7 +52,8 @@ export default function OrdersPage() {
       processed: 'Diproses',
       shipped: 'Dikirim',
       completed: 'Selesai',
-      cancelled: 'Dibatalkan'
+      cancelled: 'Dibatalkan',
+      paid: 'Dibayar'
     };
     return labels[status] || status;
   };
@@ -101,11 +103,10 @@ export default function OrdersPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
+            {orders.map((order: any) => (
               <div 
                 key={order.id} 
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer group"
-                onClick={() => router.push(`/orders/${order.id}`)}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="p-6">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -129,44 +130,72 @@ export default function OrdersPage() {
                     </span>
                   </div>
 
-                  <div className="flex gap-4 items-center">
-                    <div className="relative w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                      <Image
-                        src={order.product?.image_url || "https://via.placeholder.com/150?text=No+Image"}
-                        alt={order.product?.name || "Product"}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-gray-900 text-lg mb-1 truncate">{order.product?.name}</h3>
-                      <p className="text-gray-500 text-sm mb-2">
-                        {order.quantity} barang x Rp {order.price_each.toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                    <div className="text-right hidden md:block">
-                      <p className="text-sm text-gray-500 mb-1">Total Belanja</p>
-                      <p className="font-bold text-emerald-600 text-lg">
-                        Rp {order.total_price.toLocaleString('id-ID')}
-                      </p>
-                    </div>
+                  {/* Display all items in this order */}
+                  <div className="space-y-4">
+                    {(order.items || [order]).map((item: any, index: number) => (
+                      <div key={item.id || `${order.id}-${index}`} className="flex gap-4 items-center">
+                        <div className="relative w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                          <Image
+                            src={item.product?.image_url || order.product?.image_url || "https://via.placeholder.com/150?text=No+Image"}
+                            alt={item.product?.name || order.product?.name || "Product"}
+                            fill
+                            className="object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 text-lg mb-1 truncate">
+                            {item.product?.name || order.product?.name}
+                          </h3>
+                          <p className="text-gray-500 text-sm mb-2">
+                            {item.quantity || order.quantity} barang x Rp {(item.price_each || order.price_each)?.toLocaleString('id-ID')}
+                          </p>
+                          <p className="text-gray-700 text-sm font-medium">
+                            Subtotal: Rp {(item.total_price || order.total_price)?.toLocaleString('id-ID')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   
-                  <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center md:hidden">
-                    <span className="text-sm font-medium text-gray-900">Total Belanja</span>
-                    <span className="font-bold text-emerald-600">
-                      Rp {order.total_price.toLocaleString('id-ID')}
-                    </span>
+                  {/* Order Summary */}
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-500">Total Produk:</span>
+                      <span className="text-sm font-medium">
+                        Rp {(order.total_price || 0).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    {order.shipping_price && (
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-gray-500">Ongkos Kirim:</span>
+                        <span className="text-sm font-medium">
+                          Rp {(order.shipping_price || 0).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                      <span className="text-base font-medium text-gray-900">Total Pembayaran:</span>
+                      <span className="text-lg font-bold text-emerald-600">
+                        Rp {(order.grand_total || order.total_price || 0).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="mt-4 flex gap-2 justify-end">
+                    <button 
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Lihat Detail
+                    </button>
+                    {order.status === 'completed' && (
+                      <button className="px-4 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors">
+                        Beli Lagi
+                      </button>
+                    )}
                   </div>
                 </div>
-                
-                {order.status === 'completed' && (
-                  <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
-                    <button className="text-sm font-medium text-emerald-600 hover:text-emerald-700">
-                      Beli Lagi
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>

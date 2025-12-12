@@ -15,7 +15,6 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
 
   // Check auth status on mount (client-side only)
@@ -127,8 +126,6 @@ export default function AdminLayout({
       <aside 
         className="bg-[#064e3b] text-white fixed top-0 left-0 h-screen z-50 overflow-hidden border-r border-emerald-800 group/sidebar
           w-20 hover:w-64 transition-[width] duration-300 ease-in-out hidden md:block"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex flex-col h-full w-64">
           {/* Header */}

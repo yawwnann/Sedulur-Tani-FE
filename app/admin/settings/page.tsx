@@ -77,6 +77,8 @@ export default function SettingsPage() {
   });
   const [, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'info' as 'info' | 'success' | 'warning' | 'error' });
 
   // Load data on mount (client-side only)
   useEffect(() => {
@@ -93,13 +95,15 @@ export default function SettingsPage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('File harus berupa gambar!');
+      setAlertConfig({ title: 'Format File Salah', message: 'File harus berupa gambar!', type: 'error' });
+      setShowAlert(true);
       return;
     }
 
     // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran file maksimal 2MB!');
+      setAlertConfig({ title: 'File Terlalu Besar', message: 'Ukuran file maksimal 2MB!', type: 'error' });
+      setShowAlert(true);
       return;
     }
 
@@ -122,11 +126,13 @@ export default function SettingsPage() {
         const updatedSettings = { ...storeSettings, storeLogo: logoUrl };
         localStorage.setItem('storeSettings', JSON.stringify(updatedSettings));
       } else {
-        alert('Gagal mengupload logo!');
+        setAlertConfig({ title: 'Upload Gagal', message: 'Gagal mengupload logo!', type: 'error' });
+        setShowAlert(true);
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Terjadi kesalahan saat mengupload logo!');
+      setAlertConfig({ title: 'Terjadi Kesalahan', message: 'Terjadi kesalahan saat mengupload logo!', type: 'error' });
+      setShowAlert(true);
     } finally {
       setUploadingLogo(false);
       // Reset file input
@@ -159,11 +165,13 @@ export default function SettingsPage() {
 
   const handlePasswordChange = async () => {
     if (accountSettings.newPassword !== accountSettings.confirmPassword) {
-      alert('Password baru dan konfirmasi tidak cocok!');
+      setAlertConfig({ title: 'Password Tidak Cocok', message: 'Password baru dan konfirmasi tidak cocok!', type: 'error' });
+      setShowAlert(true);
       return;
     }
     if (accountSettings.newPassword.length < 6) {
-      alert('Password minimal 6 karakter!');
+      setAlertConfig({ title: 'Password Terlalu Pendek', message: 'Password minimal 6 karakter!', type: 'error' });
+      setShowAlert(true);
       return;
     }
 
@@ -171,7 +179,8 @@ export default function SettingsPage() {
     await new Promise(resolve => setTimeout(resolve, 1000));
     setLoading(false);
     
-    alert('Password berhasil diubah!');
+    setAlertConfig({ title: 'Berhasil', message: 'Password berhasil diubah!', type: 'success' });
+    setShowAlert(true);
     setAccountSettings({
       currentPassword: '',
       newPassword: '',
@@ -686,6 +695,28 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Alert Component */}
+      {showAlert && (
+        <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+          alertConfig.type === 'success' ? 'bg-green-500 text-white' :
+          alertConfig.type === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+        }`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold">{alertConfig.title}</h3>
+              <p className="text-sm">{alertConfig.message}</p>
+            </div>
+            <button
+              onClick={() => setShowAlert(false)}
+              className="ml-4 text-white hover:text-gray-200"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
