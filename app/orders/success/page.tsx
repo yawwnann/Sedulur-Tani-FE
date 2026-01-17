@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function OrderSuccessPage() {
+function OrderSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
@@ -65,5 +65,29 @@ export default function OrderSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 pt-24">
+      <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center space-y-6">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
+          <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+        </div>
+        <div className="space-y-2">
+          <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto animate-pulse"></div>
+          <div className="h-4 bg-gray-100 rounded w-full animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <OrderSuccessContent />
+    </Suspense>
   );
 }

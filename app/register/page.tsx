@@ -23,9 +23,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     setFormData({
       ...formData,
@@ -70,7 +69,7 @@ export default function RegisterPage() {
         window.dispatchEvent(new Event("auth-changed"));
 
         // Redirect based on role
-        if (user.role === 'seller' || user.role === 'admin') {
+        if (user.role === "seller" || user.role === "admin") {
           router.push("/admin");
         } else {
           router.push("/");
@@ -83,7 +82,7 @@ export default function RegisterPage() {
       console.error("Registration failed:", err);
       const error = err as { response?: { data?: { message?: string } } };
       setError(
-        error.response?.data?.message || "Gagal mendaftar. Silakan coba lagi."
+        error.response?.data?.message || "Gagal mendaftar. Silakan coba lagi.",
       );
     } finally {
       setLoading(false);
@@ -95,7 +94,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden mt-20">
         <div className="grid md:grid-cols-2">
           {/* Left Side - Image */}
-          <div className="relative bg-linear-to-br from-emerald-600 to-emerald-800 p-12 flex flex-col justify-between min-h-[800px]">
+          <div className="relative bg-linear-to-br from-emerald-600 to-emerald-800 p-12 hidden md:flex flex-col justify-between min-h-[800px]">
             <div className="absolute inset-0">
               <Image
                 src={bgLogin}

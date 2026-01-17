@@ -29,7 +29,34 @@ export default function OrderDetailPage() {
     try {
       setLoading(true);
       const response = await ordersApi.getById(id);
-      setOrder(response.data.data.order || response.data.data);
+      const orderData = response.data.data.order || response.data.data;
+
+      // If order has items array, use the most advanced status
+      if (orderData.items && orderData.items.length > 0) {
+        const statusPriority = [
+          "completed",
+          "shipped",
+          "processed",
+          "pending",
+          "cancelled",
+        ];
+        let aggregatedStatus = orderData.items[0].status;
+
+        // Find the most advanced status among items
+        for (const item of orderData.items) {
+          if (
+            statusPriority.indexOf(item.status) <
+            statusPriority.indexOf(aggregatedStatus)
+          ) {
+            aggregatedStatus = item.status;
+          }
+        }
+
+        // Override checkout status with aggregated item status
+        orderData.status = aggregatedStatus;
+      }
+
+      setOrder(orderData);
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal memuat detail pesanan");
     } finally {
@@ -40,6 +67,7 @@ export default function OrderDetailPage() {
   const getStatusBadgeClass = (status: string) => {
     const statusClasses: Record<string, string> = {
       pending: "bg-amber-100 text-amber-700 border-amber-200",
+      paid: "bg-green-100 text-green-700 border-green-200",
       processed: "bg-blue-100 text-blue-700 border-blue-200",
       shipped: "bg-purple-100 text-purple-700 border-purple-200",
       completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -51,6 +79,7 @@ export default function OrderDetailPage() {
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       pending: "Menunggu Pembayaran",
+      paid: "Sudah Dibayar",
       processed: "Sedang Diproses",
       shipped: "Sedang Dikirim",
       completed: "Selesai",
@@ -63,6 +92,7 @@ export default function OrderDetailPage() {
     const descriptions: Record<string, string> = {
       pending:
         "Mohon segera selesaikan pembayaran Anda agar pesanan dapat diproses.",
+      paid: "Pembayaran telah diterima, pesanan akan segera diproses.",
       processed: "Penjual sedang menyiapkan pesanan Anda.",
       shipped: "Pesanan Anda sedang dalam perjalanan ke alamat tujuan.",
       completed: "Pesanan telah diterima dan transaksi selesai.",
@@ -74,6 +104,7 @@ export default function OrderDetailPage() {
   const getStatusBannerColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: "bg-amber-50 border-amber-200 text-amber-800",
+      paid: "bg-green-50 border-green-200 text-green-800",
       processed: "bg-blue-50 border-blue-200 text-blue-800",
       shipped: "bg-purple-50 border-purple-200 text-purple-800",
       completed: "bg-emerald-50 border-emerald-200 text-emerald-800",
@@ -176,7 +207,7 @@ export default function OrderDetailPage() {
             {/* Status Banner */}
             <div
               className={`w-full p-6 rounded-2xl border flex items-start gap-4 ${getStatusBannerColor(
-                order.status
+                order.status,
               )}`}
             >
               <div className="mt-1">
@@ -192,6 +223,21 @@ export default function OrderDetailPage() {
                       strokeLinejoin="round"
                       strokeWidth={2}
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                )}
+                {order.status === "paid" && (
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
                 )}
@@ -389,24 +435,30 @@ export default function OrderDetailPage() {
                 <h3 className="font-bold text-gray-900">Produk Dibeli</h3>
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(
-                    order.status
+                    order.status,
                   )}`}
                 >
                   {getStatusLabel(order.status)}
                 </span>
               </div>
-              
+
               {/* Display all items in this order */}
               <div className="space-y-4">
                 {(order.items || [order]).map((item: any, index: number) => (
-                  <div key={item.id || `${order.id}-${index}`} className="flex gap-4 items-start py-4 border-t border-gray-100 first:border-t-0">
+                  <div
+                    key={item.id || `${order.id}-${index}`}
+                    className="flex gap-4 items-start py-4 border-t border-gray-100 first:border-t-0"
+                  >
                     <div className="relative w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
                       <Image
                         src={
-                          item.product?.image_url || order.product?.image_url ||
+                          item.product?.image_url ||
+                          order.product?.image_url ||
                           "https://via.placeholder.com/150?text=No+Image"
                         }
-                        alt={item.product?.name || order.product?.name || "Product"}
+                        alt={
+                          item.product?.name || order.product?.name || "Product"
+                        }
                         fill
                         className="object-cover"
                       />
@@ -417,19 +469,28 @@ export default function OrderDetailPage() {
                       </h4>
                       <p className="text-gray-500 text-sm mt-1">
                         {item.quantity || order.quantity} x Rp{" "}
-                        {(item.price_each || order.price_each)?.toLocaleString("id-ID")}
+                        {(item.price_each || order.price_each)?.toLocaleString(
+                          "id-ID",
+                        )}
                       </p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
                           Berat:{" "}
-                          {(((item.product?.weight || order.product?.weight) || 0) * (item.quantity || order.quantity)) / 1000}{" "}
+                          {((item.product?.weight ||
+                            order.product?.weight ||
+                            0) *
+                            (item.quantity || order.quantity)) /
+                            1000}{" "}
                           kg
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-emerald-600 text-lg">
-                        Rp {(item.total_price || order.total_price)?.toLocaleString("id-ID")}
+                        Rp{" "}
+                        {(
+                          item.total_price || order.total_price
+                        )?.toLocaleString("id-ID")}
                       </p>
                     </div>
                   </div>
@@ -438,43 +499,62 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Shipping Info */}
-            {(order.status === "shipped" || order.status === "completed") && order.items && order.items.length > 0 && (
-              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4">
-                  Informasi Pengiriman
-                </h3>
-                {/* Show shipping for first item - assuming all items in a checkout ship together */}
-                {order.items[0]?.shipments && order.items[0].shipments.length > 0 && order.items[0].shipments.map((shipment: any) => (
-                  <div key={shipment.id} className="space-y-4">
-                    <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Kurir</p>
-                        <p className="font-bold text-gray-900">{shipment.courier_name}</p>
+            {(order.status === "shipped" || order.status === "completed") &&
+              order.items &&
+              order.items.length > 0 && (
+                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-4">
+                    Informasi Pengiriman
+                  </h3>
+                  {/* Show shipping for first item - assuming all items in a checkout ship together */}
+                  {order.items[0]?.shipments &&
+                    order.items[0].shipments.length > 0 &&
+                    order.items[0].shipments.map((shipment: any) => (
+                      <div key={shipment.id} className="space-y-4">
+                        <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Kurir</p>
+                            <p className="font-bold text-gray-900">
+                              {shipment.courier_name}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-500 mb-1">Resi</p>
+                            <p className="font-mono font-bold text-gray-900">
+                              {shipment.tracking_number || "-"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 p-3 rounded-xl">
+                          <svg
+                            className="w-5 h-5 text-blue-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="text-sm text-blue-800">
+                              <span className="font-semibold">Status: </span>
+                              {shipment.status === "packing" &&
+                                "Sedang Dikemas"}
+                              {shipment.status === "shipping" &&
+                                "Dalam Perjalanan"}
+                              {shipment.status === "delivered" &&
+                                "Telah Diterima"}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500 mb-1">Resi</p>
-                        <p className="font-mono font-bold text-gray-900">
-                          {shipment.tracking_number || "-"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 p-3 rounded-xl">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="text-sm text-blue-800">
-                          <span className="font-semibold">Status: </span>
-                          {shipment.status === "packing" && "Sedang Dikemas"}
-                          {shipment.status === "shipping" && "Dalam Perjalanan"}
-                          {shipment.status === "delivered" && "Telah Diterima"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                    ))}
+                </div>
+              )}
           </div>
 
           <div className="lg:col-span-1 space-y-6">
@@ -513,11 +593,15 @@ export default function OrderDetailPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>Total Harga Barang</span>
-                  <span>Rp {(order.total_price || 0).toLocaleString("id-ID")}</span>
+                  <span>
+                    Rp {(order.total_price || 0).toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Biaya Pengiriman</span>
-                  <span>Rp {(order.shipping_price || 0).toLocaleString("id-ID")}</span>
+                  <span>
+                    Rp {(order.shipping_price || 0).toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between text-gray-600 text-sm">
                   <span>Biaya Layanan</span>
@@ -528,7 +612,12 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-gray-900">Total Bayar</span>
                   <span className="text-xl font-bold text-emerald-600">
-                    Rp {(order.grand_total || order.total_price || 0).toLocaleString("id-ID")}
+                    Rp{" "}
+                    {(
+                      order.grand_total ||
+                      order.total_price ||
+                      0
+                    ).toLocaleString("id-ID")}
                   </span>
                 </div>
               </div>

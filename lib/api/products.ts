@@ -1,15 +1,25 @@
 import { api } from "./client";
 
 export const productsApi = {
-  getAll: (params?: {
-    seller_id?: string;
-    search?: string;
-    min_price?: number;
-    max_price?: number;
-    in_stock?: boolean;
-    page?: number;
-    limit?: number;
-  }) => api.get("/products", { params }),
+  getAll: (
+    page?: number,
+    limit?: number,
+    params?: {
+      seller_id?: string;
+      search?: string;
+      min_price?: number;
+      max_price?: number;
+      in_stock?: boolean;
+      category?: string;
+    }
+  ) =>
+    api.get("/products", {
+      params: {
+        page: page || 1,
+        limit: limit || 12,
+        ...params,
+      },
+    }),
   getById: (id: string) => api.get(`/products/${id}`),
   create: (data: FormData) =>
     api.post("/products", data, {

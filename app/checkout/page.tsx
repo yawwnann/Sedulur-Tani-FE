@@ -3,15 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  cartApi,
-  addressApi,
-  checkoutApi,
-  paymentApi,
-  shippingApi,
-} from "@/lib/api";
+import { cartApi, addressApi, checkoutApi, paymentApi } from "@/lib/api";
 import { Cart, Address } from "@/lib/types";
-import Toast from "@/components/shared/Toast";
+import { toast } from "@/lib/toast";
+import SimpleShippingInfo from "@/components/checkout/SimpleShippingInfo";
+import PaymentModal from "@/components/checkout/PaymentModal";
+import CheckoutConfirmModal from "@/components/checkout/CheckoutConfirmModal";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -20,16 +17,14 @@ export default function CheckoutPage() {
   const [selectedAddress, setSelectedAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [shippingPrice, setShippingPrice] = useState(0);
-  const [shippingInfo, setShippingInfo] = useState<{
-    courier: string;
-    etd: string;
-  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [paymentModal, setPaymentModal] = useState<{
+    show: boolean;
+    invoiceUrl: string;
+    checkoutId: string;
+  }>({ show: false, invoiceUrl: "", checkoutId: "" });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -38,13 +33,8 @@ export default function CheckoutPage() {
       return;
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (selectedAddress && cart?.items) {
-      calculateShipping();
-    }
-  }, [selectedAddress, cart]);
 
   const fetchData = async () => {
     try {
@@ -65,11 +55,11 @@ export default function CheckoutPage() {
       } else if (addressRes.data.data.addresses?.length > 0) {
         setSelectedAddress(addressRes.data.data.addresses[0].id);
       }
-    } catch (err: any) {
-      setToast({
-        message: err.response?.data?.message || "Gagal memuat data checkout",
-        type: "error",
-      });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(
+        error.response?.data?.message || "Gagal memuat data checkout"
+      );
     } finally {
       setLoading(false);
     }
@@ -82,31 +72,8 @@ export default function CheckoutPage() {
     }, 0);
   };
 
-  const calculateShipping = async () => {
-    if (!selectedAddress || !cart) return;
-
-    const address = addresses.find((a) => a.id === selectedAddress);
-    if (!address) return;
-
-    // Get total weight in kg
-    const weightInKg = calculateTotalWeight() / 1000;
-
-    try {
-      const res = await shippingApi.calculateCost({
-        provinceId: address.province, // Backend can now handle province name
-        weight: weightInKg,
-      });
-      setShippingPrice(res.data.data.cost);
-      setShippingInfo({
-        courier: res.data.data.courier,
-        etd: res.data.data.etd,
-      });
-    } catch (error) {
-      console.error("Failed to calculate shipping:", error);
-      // Fallback or show error
-      setShippingPrice(0);
-      setShippingInfo(null);
-    }
+  const handleShippingCalculated = (cost: number) => {
+    setShippingPrice(cost);
   };
 
   const calculateSubtotal = () => {
@@ -122,10 +89,15 @@ export default function CheckoutPage() {
 
   const handleCheckout = async () => {
     if (!selectedAddress) {
-      setToast({ message: "Silakan pilih alamat pengiriman", type: "error" });
+      toast.error("Silakan pilih alamat pengiriman");
       return;
     }
 
+    // Show confirmation modal first
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmCheckout = async () => {
     setProcessing(true);
 
     try {
@@ -149,47 +121,32 @@ export default function CheckoutPage() {
         checkout_id: checkoutId,
       });
 
-      const snapToken = paymentRes.data.data.snap_token;
+      const invoiceUrl = paymentRes.data.data.invoice_url;
 
-      // Open Midtrans Snap popup
-      if (snapToken) {
-        // @ts-ignore - Snap is loaded from external script
-        window.snap.pay(snapToken, {
-          onSuccess: function(result: any) {
-            console.log('Payment success:', result);
-            router.push(`/payment/success?status=success`);
-          },
-          onPending: function(result: any) {
-            console.log('Payment pending:', result);
-            router.push(`/payment/success?status=pending`);
-          },
-          onError: function(result: any) {
-            console.log('Payment error:', result);
-            setToast({ message: "Pembayaran gagal", type: "error" });
-            setProcessing(false);
-          },
-          onClose: function() {
-            console.log('Customer closed the popup without finishing payment');
-            setProcessing(false);
-          }
+      // Show payment modal instead of redirect
+      if (invoiceUrl) {
+        setPaymentModal({
+          show: true,
+          invoiceUrl: invoiceUrl,
+          checkoutId: checkoutId,
         });
+        setShowConfirmModal(false); // Close confirm modal
+        setProcessing(false);
       } else {
-        setToast({ message: "Gagal memproses pembayaran", type: "error" });
+        toast.error("Gagal memproses pembayaran");
         setProcessing(false);
       }
-    } catch (err: any) {
-      console.error("Checkout error:", err);
-      setToast({
-        message: err.response?.data?.message || "Checkout gagal",
-        type: "error",
-      });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      console.error("Checkout error:", error);
+      toast.error(error.response?.data?.message || "Checkout gagal");
       setProcessing(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         <main className="container mx-auto px-4 py-8 pt-24">
           <div className="animate-pulse space-y-6">
             <div className="h-10 bg-gray-200 rounded w-1/4"></div>
@@ -210,7 +167,7 @@ export default function CheckoutPage() {
 
   if (!cart?.items || cart.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         <main className="container mx-auto px-4 py-16 pt-32 text-center">
           <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg
@@ -243,14 +200,14 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <main className="container mx-auto px-4 py-8 pt-24 pb-16">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping Address */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-900">
                   Alamat Pengiriman
@@ -280,10 +237,10 @@ export default function CheckoutPage() {
                   {addresses.map((address) => (
                     <label
                       key={address.id}
-                      className={`relative block p-4 border rounded-xl cursor-pointer transition-all ${
+                      className={`relative block p-4 border rounded-lg cursor-pointer transition-colors ${
                         selectedAddress === address.id
-                          ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
-                          : "border-gray-200 hover:border-emerald-200 hover:bg-gray-50"
+                          ? "border-emerald-600 bg-white"
+                          : "border-gray-300 hover:border-gray-400 bg-white"
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -324,7 +281,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Order Items */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Rincian Pesanan
               </h2>
@@ -365,8 +322,21 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* Shipping Calculator */}
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
+              <SimpleShippingInfo
+                weight={calculateTotalWeight()}
+                destinationProvince={
+                  selectedAddress
+                    ? addresses.find((a) => a.id === selectedAddress)?.province
+                    : undefined
+                }
+                onShippingCalculated={handleShippingCalculated}
+              />
+            </div>
+
             {/* Notes Section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Catatan Pesanan
               </h2>
@@ -374,7 +344,7 @@ export default function CheckoutPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Tulis catatan untuk penjual (opsional)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 resize-none"
                 rows={4}
               />
               <p className="text-xs text-gray-500 mt-2">
@@ -385,7 +355,7 @@ export default function CheckoutPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 sticky top-24">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
                 Ringkasan Pembayaran
               </h2>
@@ -408,15 +378,19 @@ export default function CheckoutPage() {
                 <div className="flex justify-between items-start text-gray-600">
                   <div className="flex flex-col">
                     <span>Biaya Pengiriman</span>
-                    {shippingInfo && (
+                    {shippingPrice > 0 && (
                       <span className="text-xs text-gray-400">
-                        {shippingInfo.courier} • Est. {shippingInfo.etd}
+                        Standar • Est. 3-7 hari
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">+</span>
-                    <span>Rp {shippingPrice.toLocaleString("id-ID")}</span>
+                    <span>
+                      {shippingPrice > 0
+                        ? `Rp ${shippingPrice.toLocaleString("id-ID")}`
+                        : "Pilih alamat"}
+                    </span>
                   </div>
                 </div>
 
@@ -429,10 +403,10 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <div className="border-t border-dashed border-gray-200 pt-4 mb-6">
+              <div className="border-t border-gray-300 pt-4 mb-6">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-gray-900">Total Tagihan</span>
-                  <span className="text-xl font-bold text-emerald-600">
+                  <span className="text-xl font-bold text-gray-900">
                     Rp {calculateTotal().toLocaleString("id-ID")}
                   </span>
                 </div>
@@ -440,8 +414,10 @@ export default function CheckoutPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={processing || addresses.length === 0}
-                className="w-full bg-emerald-600 text-white py-3.5 rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={
+                  processing || addresses.length === 0 || shippingPrice === 0
+                }
+                className="w-full bg-emerald-600 text-white py-3.5 rounded-lg hover:bg-emerald-700 transition-colors font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {processing ? (
                   <>
@@ -496,11 +472,25 @@ export default function CheckoutPage() {
         </div>
       </main>
 
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
+      {showConfirmModal && cart && selectedAddress && (
+        <CheckoutConfirmModal
+          cart={cart}
+          selectedAddress={addresses.find((a) => a.id === selectedAddress)!}
+          shippingPrice={shippingPrice}
+          notes={notes}
+          onConfirm={handleConfirmCheckout}
+          onCancel={() => setShowConfirmModal(false)}
+          isProcessing={processing}
+        />
+      )}
+
+      {paymentModal.show && (
+        <PaymentModal
+          invoiceUrl={paymentModal.invoiceUrl}
+          checkoutId={paymentModal.checkoutId}
+          onClose={() =>
+            setPaymentModal({ show: false, invoiceUrl: "", checkoutId: "" })
+          }
         />
       )}
     </div>

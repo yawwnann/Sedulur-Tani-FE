@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
 
 interface BannerSlide {
   image: string;
@@ -12,32 +12,37 @@ interface BannerSlide {
 
 const bannerSlides: BannerSlide[] = [
   {
-    image: '/image/banner1.jpg',
-    title: 'Pupuk Berkualitas untuk Hasil Panen Maksimal',
-    description: 'Dapatkan berbagai jenis pupuk organik dan kimia terbaik untuk meningkatkan produktivitas pertanian Anda',
+    image: "/image/banner1.jpg",
+    title: "Pupuk Berkualitas untuk Hasil Panen Maksimal",
+    description:
+      "Dapatkan berbagai jenis pupuk organik dan kimia terbaik untuk meningkatkan produktivitas pertanian Anda",
   },
   {
-    image: '/image/banner2.jpg',
-    title: 'Gratis Ongkir untuk Pembelian Pertama',
-    description: 'Nikmati promo spesial gratis ongkir ke seluruh Indonesia untuk pembelian pupuk pertama Anda',
+    image: "/image/banner2.jpg",
+    title: "Gratis Ongkir untuk Pembelian Pertama",
+    description:
+      "Nikmati promo spesial gratis ongkir ke seluruh Indonesia untuk pembelian pupuk pertama Anda",
   },
   {
-    image: '/image/banner3.jpg',
-    title: 'Konsultasi Gratis dengan Ahli Pertanian',
-    description: 'Dapatkan rekomendasi pupuk terbaik sesuai kebutuhan lahan Anda dari para ahli berpengalaman',
+    image: "/image/banner3.jpg",
+    title: "Konsultasi Gratis dengan Ahli Pertanian",
+    description:
+      "Dapatkan rekomendasi pupuk terbaik sesuai kebutuhan lahan Anda dari para ahli berpengalaman",
   },
 ];
 
-// Fallback gradients if images not available
-const fallbackGradients = [
-  'linear-gradient(135deg, #308A50 0%, #276D3F 100%)',
-  'linear-gradient(135deg, #3FA865 0%, #308A50 100%)',
-  'linear-gradient(135deg, #276D3F 0%, #1F5A32 100%)',
+// Fallback linears if images not available
+const fallbacklinears = [
+  "linear-linear(135deg, #308A50 0%, #276D3F 100%)",
+  "linear-linear(135deg, #3FA865 0%, #308A50 100%)",
+  "linear-linear(135deg, #276D3F 0%, #1F5A32 100%)",
 ];
 
 export default function BannerSlider() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [imageErrors, setImageErrors] = useState<boolean[]>(new Array(bannerSlides.length).fill(false));
+  const [imageErrors, setImageErrors] = useState<boolean[]>(
+    new Array(bannerSlides.length).fill(false),
+  );
 
   // Auto slide every 5 seconds
   useEffect(() => {
@@ -65,7 +70,9 @@ export default function BannerSlider() {
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length);
+    setCurrentSlide(
+      (prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length,
+    );
   };
 
   return (
@@ -75,7 +82,7 @@ export default function BannerSlider() {
         <div
           key={index}
           className={`absolute inset-0 transition-opacity duration-1000 z-0 ${
-            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
           }`}
         >
           {!imageErrors[index] ? (
@@ -93,12 +100,12 @@ export default function BannerSlider() {
               <div className="absolute inset-0 bg-black/40"></div>
             </>
           ) : (
-          <>
-              {/* Fallback Gradient Background */}
+            <>
+              {/* Fallback linear Background */}
               <div
                 className="absolute inset-0"
                 style={{
-                  background: fallbackGradients[index % fallbackGradients.length],
+                  background: fallbacklinears[index % fallbacklinears.length],
                 }}
               ></div>
               {/* Dark Overlay for readability */}
@@ -116,7 +123,7 @@ export default function BannerSlider() {
                 <p className="text-lg md:text-xl text-white mb-8 drop-shadow-md">
                   {slide.description}
                 </p>
-                <Link 
+                <Link
                   href="/products"
                   className="inline-block bg-[#308A50] hover:bg-[#276D3F] text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
                   suppressHydrationWarning
@@ -136,8 +143,18 @@ export default function BannerSlider() {
         aria-label="Previous slide"
         suppressHydrationWarning
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
 
@@ -147,8 +164,18 @@ export default function BannerSlider() {
         aria-label="Next slide"
         suppressHydrationWarning
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
         </svg>
       </button>
 
@@ -160,8 +187,8 @@ export default function BannerSlider() {
             onClick={() => goToSlide(index)}
             className={`transition-all rounded-full ${
               index === currentSlide
-                ? 'bg-white w-8 h-3'
-                : 'bg-white/50 w-3 h-3 hover:bg-white/70'
+                ? "bg-white w-8 h-3"
+                : "bg-white/50 w-3 h-3 hover:bg-white/70"
             }`}
             aria-label={`Go to slide ${index + 1}`}
             suppressHydrationWarning

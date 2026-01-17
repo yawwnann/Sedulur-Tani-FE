@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 type UserRole = "buyer" | "seller" | "admin" | null;
@@ -13,7 +13,7 @@ interface RoleGuardProps {
 
 function getUserRole(): UserRole {
   if (typeof window === "undefined") return null;
-  
+
   const userStr = localStorage.getItem("user");
   if (!userStr) return null;
 
@@ -55,8 +55,15 @@ export default function RoleGuard({
   const router = useRouter();
   const pathname = usePathname();
   const userRole = useUserRole();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     // Belum login
     if (userRole === null) {
       // Jika halaman memerlukan login, redirect ke login
@@ -80,7 +87,12 @@ export default function RoleGuard({
         }
       }
     }
-  }, [userRole, allowedRoles, redirectTo, router, pathname]);
+  }, [userRole, allowedRoles, redirectTo, router, pathname, isClient]);
+
+  // Show loading during SSR or initial client render
+  if (!isClient) {
+    return null;
+  }
 
   // Jika role tidak diizinkan, jangan render children
   if (userRole !== null && !allowedRoles.includes(userRole)) {

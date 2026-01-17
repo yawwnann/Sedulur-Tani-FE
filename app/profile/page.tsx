@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { authApi, addressApi, userApi, shippingApi } from "@/lib/api";
 import { User, Address } from "@/lib/types";
-import Toast from "@/components/shared/Toast";
+import { toast } from "@/lib/toast";
 import { ComingSoonCard } from "@/components/shared/ComingSoon";
 
 type TabType = "personal" | "addresses" | "settings";
@@ -30,10 +30,6 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
 
   // Edit Profile Modal
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -67,12 +63,7 @@ export default function ProfilePage() {
   const [selectedRegencyId, setSelectedRegencyId] = useState("");
   const [loadingLocations, setLoadingLocations] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchAddresses();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const response = await authApi.getProfile();
       const userData = response.data.data?.user || response.data.data;
@@ -87,8 +78,9 @@ export default function ProfilePage() {
         phone: userData.phone || "",
         email: userData.email,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch user:", error);
+      const err = error as { response?: { status?: number } };
 
       // If API fails, try to get user from localStorage
       const userStr = localStorage.getItem("user");
@@ -103,32 +95,31 @@ export default function ProfilePage() {
           });
         } catch (e) {
           console.error("Failed to parse localStorage user:", e);
-          if (
-            error.response?.status === 401 ||
-            error.response?.status === 404
-          ) {
+          if (err.response?.status === 401 || err.response?.status === 404) {
             router.push("/login");
           }
         }
-      } else if (
-        error.response?.status === 401 ||
-        error.response?.status === 404
-      ) {
+      } else if (err.response?.status === 401 || err.response?.status === 404) {
         router.push("/login");
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  const fetchAddresses = async () => {
+  const fetchAddresses = useCallback(async () => {
     try {
       const response = await addressApi.getAll();
       setAddresses(response.data.data.addresses || []);
     } catch (error) {
       console.error("Failed to fetch addresses:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchAddresses();
+  }, [fetchUserData, fetchAddresses]);
 
   const fetchProvinces = async () => {
     try {
@@ -137,13 +128,13 @@ export default function ProfilePage() {
       const provincesData = response.data.data || [];
       // Filter out invalid provinces without id
       const validProvinces = provincesData.filter(
-        (p: Province) => p.id && p.name
+        (p: Province) => p.id && p.name,
       );
       setProvinces(validProvinces);
       return validProvinces; // Return data for use in other functions
     } catch (error) {
       console.error("Failed to fetch provinces:", error);
-      setToast({ message: "Gagal memuat data provinsi", type: "error" });
+      toast.error("Gagal memuat data provinsi");
       return [];
     } finally {
       setLoadingLocations(false);
@@ -157,14 +148,14 @@ export default function ProfilePage() {
       const regenciesData = response.data.data || [];
       // Filter out invalid regencies without id
       const validRegencies = regenciesData.filter(
-        (r: Regency) => r.id && r.name
+        (r: Regency) => r.id && r.name,
       );
       setRegencies(validRegencies);
       // setDistricts([]); // Don't clear districts here as it might be needed for editing
       return validRegencies; // Return data
     } catch (error) {
       console.error("Failed to fetch regencies:", error);
-      setToast({ message: "Gagal memuat data kota/kabupaten", type: "error" });
+      toast.error("Gagal memuat data kota/kabupaten");
       return [];
     } finally {
       setLoadingLocations(false);
@@ -178,13 +169,13 @@ export default function ProfilePage() {
       const districtsData = response.data.data || [];
       // Filter out invalid districts without id
       const validDistricts = districtsData.filter(
-        (d: District) => d.id && d.name
+        (d: District) => d.id && d.name,
       );
       setDistricts(validDistricts);
       return validDistricts; // Return data
     } catch (error) {
       console.error("Failed to fetch districts:", error);
-      setToast({ message: "Gagal memuat data kecamatan", type: "error" });
+      toast.error("Gagal memuat data kecamatan");
       return [];
     } finally {
       setLoadingLocations(false);
@@ -199,12 +190,10 @@ export default function ProfilePage() {
       await userApi.updateProfile(user.id, profileForm);
       await fetchUserData();
       setIsEditingProfile(false);
-      setToast({ message: "Profil berhasil diperbarui", type: "success" });
-    } catch (error: any) {
-      setToast({
-        message: error.response?.data?.message || "Gagal memperbarui profil",
-        type: "error",
-      });
+      toast.success("Profil berhasil diperbarui");
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Gagal memperbarui profil");
     } finally {
       setSavingProfile(false);
     }
@@ -236,7 +225,8 @@ export default function ProfilePage() {
 
       // 2. Find province ID by name
       const currentProvince = fetchedProvinces.find(
-        (p: Province) => p.name.toLowerCase() === address.province.toLowerCase()
+        (p: Province) =>
+          p.name.toLowerCase() === address.province.toLowerCase(),
       );
 
       if (currentProvince) {
@@ -249,7 +239,7 @@ export default function ProfilePage() {
         // Note: API might return "KABUPATEN X" or "KOTA X", but address.city might be just "X" or slightly different
         // Ideally we should store IDs, but since we store names, we try to match
         const currentRegency = fetchedRegencies.find(
-          (r: Regency) => r.name.toLowerCase() === address.city.toLowerCase()
+          (r: Regency) => r.name.toLowerCase() === address.city.toLowerCase(),
         );
 
         if (currentRegency) {
@@ -287,18 +277,16 @@ export default function ProfilePage() {
       setSavingAddress(true);
       if (editingAddress) {
         await addressApi.update(editingAddress.id, addressForm);
-        setToast({ message: "Alamat berhasil diperbarui", type: "success" });
+        toast.success("Alamat berhasil diperbarui");
       } else {
         await addressApi.create(addressForm);
-        setToast({ message: "Alamat berhasil ditambahkan", type: "success" });
+        toast.success("Alamat berhasil ditambahkan");
       }
       await fetchAddresses();
       setIsAddressModalOpen(false);
-    } catch (error: any) {
-      setToast({
-        message: error.response?.data?.message || "Gagal menyimpan alamat",
-        type: "error",
-      });
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Gagal menyimpan alamat");
     } finally {
       setSavingAddress(false);
     }
@@ -308,12 +296,10 @@ export default function ProfilePage() {
     try {
       await addressApi.delete(id);
       await fetchAddresses();
-      setToast({ message: "Alamat berhasil dihapus", type: "success" });
-    } catch (error: any) {
-      setToast({
-        message: error.response?.data?.message || "Gagal menghapus alamat",
-        type: "error",
-      });
+      toast.success("Alamat berhasil dihapus");
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Gagal menghapus alamat");
     }
   };
 
@@ -332,16 +318,18 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto px-4 py-8 pt-24 pb-16">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Profil Saya</h1>
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pt-20 sm:pt-24 pb-16">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-8">
+          Profil Saya
+        </h1>
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px overflow-x-auto">
               <button
                 onClick={() => setActiveTab("personal")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "personal"
                     ? "border-emerald-600 text-emerald-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -366,7 +354,7 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab("addresses")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "addresses"
                     ? "border-emerald-600 text-emerald-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -397,7 +385,7 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "settings"
                     ? "border-emerald-600 text-emerald-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -430,27 +418,27 @@ export default function ProfilePage() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-6 md:p-8">
+          <div className="p-3 sm:p-6 md:p-8">
             {/* Personal Information Tab */}
             {activeTab === "personal" && user && (
-              <div className="space-y-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 w-full sm:w-auto">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg shrink-0">
                       {user.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
+                    <div className="text-center sm:text-left">
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                         {user.name}
                       </h2>
-                      <p className="text-gray-500 capitalize">
+                      <p className="text-sm sm:text-base text-gray-500 capitalize">
                         {user.role === "seller" ? "Penjual" : "Pembeli"}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setIsEditingProfile(true)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center gap-2"
+                    className="w-full sm:w-auto px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
                   >
                     <svg
                       className="w-5 h-5"
@@ -469,28 +457,28 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-4 sm:pt-6 border-t border-gray-200">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">
+                    <label className="text-xs sm:text-sm font-medium text-gray-500">
                       Email
                     </label>
-                    <p className="text-gray-900 font-medium mt-1">
+                    <p className="text-sm sm:text-base text-gray-900 font-medium mt-1 break-all">
                       {user.email}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">
+                    <label className="text-xs sm:text-sm font-medium text-gray-500">
                       Nomor Telepon
                     </label>
-                    <p className="text-gray-900 font-medium mt-1">
+                    <p className="text-sm sm:text-base text-gray-900 font-medium mt-1">
                       {user.phone || "-"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">
+                    <label className="text-xs sm:text-sm font-medium text-gray-500">
                       Bergabung Sejak
                     </label>
-                    <p className="text-gray-900 font-medium mt-1">
+                    <p className="text-sm sm:text-base text-gray-900 font-medium mt-1">
                       {new Date(user.created_at).toLocaleDateString("id-ID", {
                         year: "numeric",
                         month: "long",
@@ -504,14 +492,14 @@ export default function ProfilePage() {
 
             {/* Addresses Tab */}
             {activeTab === "addresses" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-900">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
                     Daftar Alamat
                   </h3>
                   <button
                     onClick={() => handleOpenAddressModal()}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center gap-2"
+                    className="w-full sm:w-auto px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
                   >
                     <svg
                       className="w-5 h-5"
@@ -559,23 +547,23 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     {addresses.map((address) => (
                       <div
                         key={address.id}
-                        className={`p-6 rounded-xl border-2 transition-all ${
+                        className={`p-4 sm:p-6 rounded-lg sm:rounded-xl border-2 transition-all ${
                           address.is_default
                             ? "border-emerald-500 bg-emerald-50"
                             : "border-gray-200 bg-white hover:border-emerald-200"
                         }`}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-gray-900">
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3 mb-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-sm sm:text-base text-gray-900">
                               {address.label}
                             </h4>
                             {address.is_default && (
-                              <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs rounded-full font-medium">
+                              <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs rounded-full font-medium whitespace-nowrap">
                                 Utama
                               </span>
                             )}
@@ -619,11 +607,13 @@ export default function ProfilePage() {
                             </button>
                           </div>
                         </div>
-                        <div className="space-y-1 text-sm">
+                        <div className="space-y-1 text-xs sm:text-sm">
                           <p className="font-medium text-gray-900">
                             {address.recipient_name}
                           </p>
-                          <p className="text-gray-600">{address.phone}</p>
+                          <p className="text-gray-600 break-all">
+                            {address.phone}
+                          </p>
                           <p className="text-gray-600">
                             {address.address_line}
                           </p>
@@ -644,14 +634,6 @@ export default function ProfilePage() {
               <ComingSoonCard
                 title="Pengaturan Akun"
                 description="Kelola password, notifikasi, dan preferensi akun Anda dengan mudah."
-                featureList={[
-                  "Ubah password akun",
-                  "Aktifkan verifikasi 2 langkah",
-                  "Pengaturan notifikasi email",
-                  "Pengaturan notifikasi push",
-                  "Preferensi bahasa dan zona waktu",
-                  "Hapus atau nonaktifkan akun"
-                ]}
               />
             )}
           </div>
@@ -823,7 +805,7 @@ export default function ProfilePage() {
                         setSelectedProvinceId(provId);
                         setSelectedRegencyId("");
                         const selectedProv = provinces.find(
-                          (p) => p.id === provId
+                          (p) => p.id === provId,
                         );
                         setAddressForm({
                           ...addressForm,
@@ -862,7 +844,7 @@ export default function ProfilePage() {
                         const cityId = e.target.value;
                         setSelectedRegencyId(cityId);
                         const selectedCity = regencies.find(
-                          (r) => r.id === cityId
+                          (r) => r.id === cityId,
                         );
                         setAddressForm({
                           ...addressForm,
@@ -897,9 +879,6 @@ export default function ProfilePage() {
                       value={addressForm.postal_code}
                       onChange={(e) => {
                         const subdistrictId = e.target.value;
-                        const selectedDistrict = districts.find(
-                          (d) => d.id === subdistrictId
-                        );
                         setAddressForm({
                           ...addressForm,
                           postal_code: subdistrictId,
@@ -959,14 +938,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </>
-      )}
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
       )}
     </div>
   );
