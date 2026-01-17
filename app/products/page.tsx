@@ -1,29 +1,37 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { productsApi, cartApi } from "@/lib/api";
-import { Product, PaginationMeta } from "@/lib/types";
+import { productsApi, cartApi, categoryApi } from "@/lib/api";
+import { Product, PaginationMeta, Category } from "@/lib/types";
 import Alert from "@/components/shared/Alert";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 
 function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const [showAlert, setShowAlert] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'error' });
+  const [alertConfig, setAlertConfig] = useState({
+    title: "",
+    message: "",
+    type: "success" as "success" | "error",
+  });
 
   // Filters
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+
+  // Fetch categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   // Read category from URL on mount
   useEffect(() => {
@@ -33,6 +41,15 @@ function ProductsContent() {
     }
   }, [searchParams]);
 
+  const fetchCategories = async () => {
+    try {
+      const response = await categoryApi.getAll();
+      setCategories(response.data.data.categories || []);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+    }
+  };
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
@@ -41,22 +58,45 @@ function ProductsContent() {
   // Sort
   const [sortBy, setSortBy] = useState("newest");
 
-  const fetchProducts = async () => {
+  interface ProductApiParams {
+    search?: string;
+    category?: string;
+    min_price?: number;
+    max_price?: number;
+    in_stock?: boolean;
+  }
+
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const params: any = {
-        in_stock: true,
+      const apiParams: ProductApiParams = {};
+
+      if (search) apiParams.search = search;
+      if (category) apiParams.category = category;
+      if (minPrice) apiParams.min_price = Number(minPrice);
+      if (maxPrice) apiParams.max_price = Number(maxPrice);
+
+      // Only add in_stock filter if no category is selected
+      if (!category) {
+        apiParams.in_stock = true;
+      }
+
+      console.log("Fetching products with params:", {
         page: currentPage,
         limit: itemsPerPage,
-      };
-      if (search) params.search = search;
-      if (category) params.category = category;
-      if (minPrice) params.min_price = Number(minPrice);
-      if (maxPrice) params.max_price = Number(maxPrice);
+        ...apiParams,
+      });
 
-      const response = await productsApi.getAll(params);
+      const response = await productsApi.getAll(
+        currentPage,
+        itemsPerPage,
+        apiParams
+      );
       let fetchedProducts = response.data.data?.products || [];
       const paginationData = response.data.data?.pagination;
+
+      console.log("Fetched products:", fetchedProducts.length);
+      console.log("Category filter:", category);
 
       // Sort products locally (client-side)
       if (sortBy === "price_low") {
@@ -84,7 +124,7 @@ function ProductsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, category, minPrice, maxPrice, currentPage, itemsPerPage, sortBy]);
 
   // Debounce search and reset page on filter change
   useEffect(() => {
@@ -94,12 +134,12 @@ function ProductsContent() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [search, category, minPrice, maxPrice, sortBy]);
+  }, [search, category, minPrice, maxPrice, sortBy, fetchProducts]);
 
   // Fetch when page changes
   useEffect(() => {
     fetchProducts();
-  }, [currentPage]);
+  }, [currentPage, fetchProducts]);
 
   const handleAddToCart = async (productId: string) => {
     const token = localStorage.getItem("token");
@@ -115,14 +155,27 @@ function ProductsContent() {
         productId: productId,
         quantity: 1,
       });
-      setAlertConfig({ title: 'Berhasil', message: 'Produk berhasil ditambahkan ke keranjang!', type: 'success' });
+      setAlertConfig({
+        title: "Berhasil",
+        message: "Produk berhasil ditambahkan ke keranjang!",
+        type: "success",
+      });
       setShowAlert(true);
       // Trigger cart update event
       window.dispatchEvent(new Event("cart-updated"));
       window.dispatchEvent(new Event("storage"));
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to add to cart:", error);
-      setAlertConfig({ title: 'Gagal', message: error.response?.data?.message || 'Gagal menambahkan ke keranjang', type: 'error' });
+      const errorMessage =
+        error instanceof Error
+          ? (error as Error & { response?: { data?: { message?: string } } })
+              .response?.data?.message || error.message
+          : "Gagal menambahkan ke keranjang";
+      setAlertConfig({
+        title: "Gagal",
+        message: errorMessage,
+        type: "error",
+      });
       setShowAlert(true);
     } finally {
       setAddingToCart(null);
@@ -134,7 +187,11 @@ function ProductsContent() {
       <main className="container mx-auto px-4 py-8 pt-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            {category ? `Produk ${category}` : "Semua Produk"}
+            {category
+              ? `Produk ${
+                  categories.find((c) => c.id === category)?.name || "Kategori"
+                }`
+              : "Semua Produk"}
           </h1>
           {category && (
             <button
@@ -189,6 +246,29 @@ function ProductsContent() {
                 </div>
               </div>
 
+              {/* Category Filter */}
+              <div className="w-full md:w-48">
+                <select
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    if (e.target.value) {
+                      router.push(`/products?category=${e.target.value}`);
+                    } else {
+                      router.push("/products");
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-white"
+                >
+                  <option value="">Semua Kategori</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-2 w-full md:w-auto">
                 <input
                   type="number"
@@ -207,6 +287,104 @@ function ProductsContent() {
                 />
               </div>
             </div>
+
+            {/* Active Filters Display */}
+            {(category || search || minPrice || maxPrice) && (
+              <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100">
+                <span className="text-sm text-gray-600 font-medium">
+                  Filter aktif:
+                </span>
+                {category && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-sm border border-emerald-200">
+                    Kategori:{" "}
+                    {categories.find((c) => c.id === category)?.name ||
+                      "Unknown"}
+                    <button
+                      onClick={() => {
+                        setCategory("");
+                        router.push("/products");
+                      }}
+                      className="hover:text-emerald-900"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                )}
+                {search && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-200">
+                    Pencarian: &quot;{search}&quot;
+                    <button
+                      onClick={() => setSearch("")}
+                      className="hover:text-blue-900"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                )}
+                {(minPrice || maxPrice) && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-lg text-sm border border-purple-200">
+                    Harga: Rp {minPrice || "0"} - Rp {maxPrice || "∞"}
+                    <button
+                      onClick={() => {
+                        setMinPrice("");
+                        setMaxPrice("");
+                      }}
+                      className="hover:text-purple-900"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setCategory("");
+                    setSearch("");
+                    setMinPrice("");
+                    setMaxPrice("");
+                    router.push("/products");
+                  }}
+                  className="text-sm text-gray-600 hover:text-gray-900 underline"
+                >
+                  Reset Semua
+                </button>
+              </div>
+            )}
 
             {/* Sort and Results Info */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -260,22 +438,39 @@ function ProductsContent() {
             {products.map((product) => (
               <div
                 key={product.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-xl hover:border-emerald-100 transition-all duration-300 overflow-hidden group flex flex-col"
+                className="bg-white rounded-xl shadow-md border border-gray-100 hover:shadow-xl hover:border-emerald-100 transition-all duration-300 overflow-hidden group flex flex-col"
               >
                 <Link
                   href={`/products/${product.id}`}
-                  className="block relative aspect-4/5 bg-gray-100 overflow-hidden"
+                  className="block relative aspect-4/5 bg-linear-to-br from-gray-100 to-gray-200 overflow-hidden"
                 >
-                  <Image
-                    src={
-                      product.image_url ||
-                      "https://via.placeholder.com/300?text=No+Image"
-                    }
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
+                  {product.image_url ? (
+                    <Image
+                      src={product.image_url}
+                      alt={product.name}
+                      fill
+                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                      <svg
+                        className="w-20 h-20 mb-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium">
+                        Tidak ada gambar
+                      </span>
+                    </div>
+                  )}
                 </Link>
 
                 <div className="p-4 flex flex-col grow">

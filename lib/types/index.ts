@@ -77,7 +77,14 @@ export interface Order {
   total_price: number;
   shipping_price: number;
   grand_total: number;
-  status: "pending" | "paid" | "processed" | "shipped" | "completed" | "cancelled" | "expired";
+  status:
+    | "pending"
+    | "paid"
+    | "processed"
+    | "shipped"
+    | "completed"
+    | "cancelled"
+    | "expired";
   created_at: string;
   updated_at: string;
   product?: Product;
@@ -125,10 +132,10 @@ export interface Checkout {
 export interface Payment {
   id: string;
   checkout_id: string;
-  midtrans_order_id: string;
+  xendit_invoice_id: string;
   transaction_id?: string;
   gross_amount: number;
-  payment_type?: string;
+  payment_method?: string;
   transaction_status: string;
   transaction_time?: string;
   created_at: string;

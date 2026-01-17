@@ -1,10 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import BannerSlider from "@/components/dashboard/BannerSlider";
-import WeatherWidget from "@/components/dashboard/WeatherWidget";
 import Products from "@/components/dashboard/Products";
 import Testimonials from "@/components/dashboard/Testimonials";
 import Features from "@/components/dashboard/Features";
+
+// Dynamic import WeatherWidget to avoid hydration issues
+const WeatherWidget = dynamic(
+  () => import("@/components/dashboard/WeatherWidget"),
+  { ssr: false }
+);
 
 export default function Dashboard() {
   return (

@@ -25,10 +25,16 @@ export default function CartPage() {
       const response = await cartApi.getCart();
       setCart(response.data.data.cart);
     } catch (error: unknown) {
-      console.error("Failed to fetch cart:", error);  
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 
-          'status' in error.response && error.response.status === 401) {
+      console.error("Failed to fetch cart:", error);
+      if (
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        error.response &&
+        typeof error.response === "object" &&
+        "status" in error.response &&
+        error.response.status === 401
+      ) {
         const token = localStorage.getItem("token");
         if (!token) {
           router.push("/login");
@@ -62,11 +68,18 @@ export default function CartPage() {
       });
     } catch (error: unknown) {
       console.error("Failed to update quantity:", error);
-      const errorMessage = error && typeof error === 'object' && 'response' in error &&
-        error.response && typeof error.response === 'object' && 'data' in error.response &&
-        error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data
-        ? String(error.response.data.message)
-        : "Gagal mengupdate keranjang";
+      const errorMessage =
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        error.response &&
+        typeof error.response === "object" &&
+        "data" in error.response &&
+        error.response.data &&
+        typeof error.response.data === "object" &&
+        "message" in error.response.data
+          ? String(error.response.data.message)
+          : "Gagal mengupdate keranjang";
       setToast({
         message: errorMessage,
         type: "error",
@@ -83,11 +96,18 @@ export default function CartPage() {
       await fetchCart();
     } catch (error: unknown) {
       console.error("Failed to remove item:", error);
-      const errorMessage = error && typeof error === 'object' && 'response' in error &&
-        error.response && typeof error.response === 'object' && 'data' in error.response &&
-        error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data
-        ? String(error.response.data.message)
-        : "Gagal menghapus item";
+      const errorMessage =
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        error.response &&
+        typeof error.response === "object" &&
+        "data" in error.response &&
+        error.response.data &&
+        typeof error.response.data === "object" &&
+        "message" in error.response.data
+          ? String(error.response.data.message)
+          : "Gagal menghapus item";
       setToast({
         message: errorMessage,
         type: "error",
@@ -99,7 +119,7 @@ export default function CartPage() {
 
   if (loading && !cart) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
+      <div className="min-h-screen bg-gray-50">
         <main className="container mx-auto px-4 py-8 pt-24 pb-16">
           <div className="animate-pulse space-y-6">
             <div className="h-10 bg-gray-200 rounded-lg w-1/3 mb-8"></div>
@@ -127,7 +147,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-white">
       <main className="container mx-auto px-4 py-6 pt-20 pb-12">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -139,8 +159,8 @@ export default function CartPage() {
         </div>
 
         {!cart || cart.items.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center shadow-lg border border-gray-100 max-w-xl mx-auto">
-            <div className="w-20 h-20 bg-linear-to-br from-emerald-50 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+          <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200 max-w-xl mx-auto">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <svg
                 className="w-10 h-10 text-emerald-600"
                 fill="none"
@@ -163,10 +183,20 @@ export default function CartPage() {
             </p>
             <Link
               href="/products"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent font-semibold rounded-xl text-white bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-lg shadow-emerald-600/25"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
               </svg>
               Mulai Belanja Sekarang
             </Link>
@@ -178,10 +208,10 @@ export default function CartPage() {
               {cart.items.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-300 flex gap-4 group"
+                  className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:border-gray-300 transition-colors flex gap-4 group"
                 >
                   {/* Product Image */}
-                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-linear-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden shrink-0 shadow-sm">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                     <Image
                       src={
                         item.product.image_url ||
@@ -189,7 +219,7 @@ export default function CartPage() {
                       }
                       alt={item.product.name}
                       fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="object-cover"
                     />
                   </div>
 
@@ -204,8 +234,18 @@ export default function CartPage() {
                           {item.product.name}
                         </Link>
                         <div className="flex items-center gap-2 mt-1">
-                          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          <svg
+                            className="w-3 h-3 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
                           </svg>
                           <p className="text-xs text-gray-500">
                             {item.product.seller?.name || "Penjual"}
@@ -241,7 +281,9 @@ export default function CartPage() {
 
                     <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-gray-50">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-medium">Qty:</span>
+                        <span className="text-sm text-gray-500 font-medium">
+                          Qty:
+                        </span>
                         <div className="flex items-center border border-emerald-200 rounded-lg overflow-hidden">
                           <button
                             onClick={() =>
@@ -274,11 +316,12 @@ export default function CartPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-500 mb-1">Total</p>
-                        <div className="bg-linear-to-r from-emerald-600 to-emerald-700 text-white px-3 py-1.5 rounded-lg shadow-sm">
-                          <p className="text-sm font-bold">
-                            Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
-                          </p>
-                        </div>
+                        <p className="text-base font-bold text-gray-900">
+                          Rp{" "}
+                          {(item.product.price * item.quantity).toLocaleString(
+                            "id-ID"
+                          )}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -288,20 +331,24 @@ export default function CartPage() {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-linear-to-br from-white to-gray-50 rounded-2xl p-6 shadow-xl border border-gray-100 sticky top-24">
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 sticky top-24">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                   Ringkasan Belanja
                 </h3>
 
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between items-center py-2 px-3 bg-white rounded-lg border border-gray-100">
+                  <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">Total Item</span>
-                    <span className="font-bold text-gray-900">{cart.total_items} produk</span>
+                    <span className="font-semibold text-gray-900">
+                      {cart.total_items} produk
+                    </span>
                   </div>
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                  <div className="border-t pt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-emerald-800 font-bold">Total Harga</span>
-                      <span className="text-xl font-bold text-emerald-700">
+                      <span className="text-gray-900 font-semibold">
+                        Total Harga
+                      </span>
+                      <span className="text-xl font-bold text-gray-900">
                         Rp {cart.total_price.toLocaleString("id-ID")}
                       </span>
                     </div>
@@ -310,18 +357,26 @@ export default function CartPage() {
 
                 <button
                   onClick={() => router.push("/checkout")}
-                  className="w-full bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-3 rounded-xl transition-all duration-300 font-bold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg transition-colors font-semibold flex items-center justify-center gap-2"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.6 8M7 13v6a1 1 0 001 1h9a1 1 0 001-1v-6M7 13l-1.6-8" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.6 8M7 13v6a1 1 0 001 1h9a1 1 0 001-1v-6M7 13l-1.6-8"
+                    />
                   </svg>
                   Lanjut ke Checkout
                 </button>
-                
+
                 <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-500">
-                    🔒 Pembayaran aman
-                  </p>
+                  <p className="text-sm text-gray-500">🔒 Pembayaran aman</p>
                 </div>
               </div>
             </div>

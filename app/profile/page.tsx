@@ -644,14 +644,6 @@ export default function ProfilePage() {
               <ComingSoonCard
                 title="Pengaturan Akun"
                 description="Kelola password, notifikasi, dan preferensi akun Anda dengan mudah."
-                featureList={[
-                  "Ubah password akun",
-                  "Aktifkan verifikasi 2 langkah",
-                  "Pengaturan notifikasi email",
-                  "Pengaturan notifikasi push",
-                  "Preferensi bahasa dan zona waktu",
-                  "Hapus atau nonaktifkan akun"
-                ]}
               />
             )}
           </div>

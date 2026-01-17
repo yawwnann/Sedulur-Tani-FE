@@ -37,9 +37,10 @@ export default function Navbar() {
       try {
         const response = await cartApi.getCart();
         setCartCount(response.data.data.cart.total_items || 0);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Jangan log error jika 401 (belum login) atau 404 (cart belum ada)
-        if (error.response?.status !== 401 && error.response?.status !== 404) {
+        const axiosError = error as { response?: { status?: number } };
+        if (axiosError.response?.status !== 401 && axiosError.response?.status !== 404) {
           console.error("Failed to fetch cart count:", error);
         }
         setCartCount(0);
@@ -80,7 +81,6 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isMobileCategoryOpen, setIsMobileCategoryOpen] = useState(false);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,9 +94,9 @@ export default function Navbar() {
       if (searchQuery.trim().length >= 2) {
         setIsSearching(true);
         try {
-          const response = await productsApi.getAll({
+          // FIX: Pass parameters correctly based on your API structure
+          const response = await productsApi.getAll(undefined, 5, {
             search: searchQuery,
-            limit: 5,
           });
           setSearchResults(response.data.data?.products || []);
           setShowSearchDropdown(true);
@@ -203,8 +203,11 @@ export default function Navbar() {
     setHideMenuTimeout(timeout);
   };
 
+  // FIX: Helper to check if user is admin or seller
+  const isAdminOrSeller = user?.role === "seller";
+
   return (
-    <>
+    <div>
       {/* Main Navbar */}
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all backdrop-blur-xl duration-300 border-b border-gray-300 ${
@@ -257,9 +260,11 @@ export default function Navbar() {
               >
                 <span className="font-medium">Beranda</span>
                 {pathname === "/" && (
-                  <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
-                    isScrolled ? "bg-emerald-600" : "bg-white"
-                  }`} />
+                  <span
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
+                      isScrolled ? "bg-emerald-600" : "bg-white"
+                    }`}
+                  />
                 )}
               </Link>
 
@@ -274,9 +279,11 @@ export default function Navbar() {
               >
                 <span className="font-medium">Produk</span>
                 {pathname === "/products" && (
-                  <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
-                    isScrolled ? "bg-emerald-600" : "bg-white"
-                  }`} />
+                  <span
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
+                      isScrolled ? "bg-emerald-600" : "bg-white"
+                    }`}
+                  />
                 )}
               </Link>
 
@@ -311,9 +318,11 @@ export default function Navbar() {
                     />
                   </svg>
                   {pathname === "/categories" && (
-                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
-                      isScrolled ? "bg-emerald-600" : "bg-white"
-                    }`} />
+                    <span
+                      className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all duration-300 ${
+                        isScrolled ? "bg-emerald-600" : "bg-white"
+                      }`}
+                    />
                   )}
                 </button>
 
@@ -525,11 +534,11 @@ export default function Navbar() {
                             {user.name}
                           </p>
                           <p className="text-xs text-emerald-600 font-medium capitalize">
-                            {user.role === "seller" || user.role === "admin" ? "Admin / Penjual" : "Pembeli"}
+                            {isAdminOrSeller ? "Admin / Penjual" : "Pembeli"}
                           </p>
                         </div>
 
-                        {(user.role === "seller" || user.role === "admin") && (
+                        {isAdminOrSeller && (
                           <>
                             <Link
                               href="/admin/products"
@@ -628,7 +637,9 @@ export default function Navbar() {
 
                         <div className="border-t border-gray-100 my-2 pt-2">
                           <Link
-                            href={user.role === "seller" || user.role === "admin" ? "/admin/settings" : "/profile"}
+                            href={
+                              isAdminOrSeller ? "/admin/settings" : "/profile"
+                            }
                             className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors"
                             onClick={() => setIsDropdownOpen(false)}
                           >
@@ -688,424 +699,16 @@ export default function Navbar() {
                   </Link>
                   <Link
                     href="/register"
-                    className={`px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg ${
-                      isScrolled
-                        ? "bg-[#308A50] hover:bg-[#276D3F] text-white"
-                        : "bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white"
-                    }`}
+                    className="w-full bg-[#308A50] hover:bg-[#276D3F] px-4 py-3 rounded-lg font-medium text-white shadow-md text-center block transition-colors"
                   >
                     Daftar
                   </Link>
                 </>
               )}
             </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`lg:hidden p-2 rounded-lg transition-colors ${
-                isScrolled
-                  ? "text-gray-700 hover:bg-gray-100"
-                  : "text-white hover:bg-white/10"
-              }`}
-            >
-              {isMobileMenuOpen ? (
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              )}
-            </button>
           </div>
         </div>
       </nav>
-
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Menu */}
-      <div
-        className={`fixed top-16 right-0 h-[calc(100vh-4rem)] w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out lg:hidden ${
-          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex flex-col h-full overflow-y-auto">
-          {/* Search Bar Mobile */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center px-4 py-2 rounded-full bg-gray-100 border border-gray-300">
-              <svg
-                className="w-5 h-5 mr-2 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-4.35-4.35m1.4-5.4a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z"
-                />
-              </svg>
-              <input
-                type="text"
-                placeholder="Cari pupuk, tanaman..."
-                className="bg-transparent w-full outline-none text-gray-800 placeholder-gray-500 text-sm"
-              />
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="flex-1 p-4 space-y-2">
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
-                pathname === "/" 
-                  ? "bg-emerald-50 text-emerald-600 font-semibold" 
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
-              <span className="font-medium">Beranda</span>
-              {pathname === "/" && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-600 rounded-r-full" />
-              )}
-            </Link>
-
-            <Link
-              href="/products"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
-                pathname === "/products" 
-                  ? "bg-emerald-50 text-emerald-600 font-semibold" 
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
-              <span className="font-medium">Produk</span>
-              {pathname === "/products" && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-600 rounded-r-full" />
-              )}
-            </Link>
-
-            <div className="space-y-1">
-              <button
-                onClick={() => setIsMobileCategoryOpen(!isMobileCategoryOpen)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors relative ${
-                  pathname === "/categories" 
-                    ? "bg-emerald-50 text-emerald-600 font-semibold" 
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                    />
-                  </svg>
-                  <span className="font-medium">Kategori</span>
-                </div>
-                <svg
-                  className={`w-4 h-4 transition-transform duration-200 ${
-                    isMobileCategoryOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-                {pathname === "/categories" && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-600 rounded-r-full" />
-                )}
-              </button>
-
-              {isMobileCategoryOpen && (
-                <div className="pl-12 pr-4 space-y-2 pb-2 animate-in slide-in-from-top-2 duration-200">
-                  <Link
-                    href="/categories"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block w-full text-left py-2 text-sm font-bold text-emerald-600 hover:text-emerald-700"
-                  >
-                    Lihat Semua Kategori
-                  </Link>
-                  <button
-                    onClick={() => handleCategoryClick("")}
-                    className="block w-full text-left py-2 text-sm text-gray-600 hover:text-emerald-600"
-                  >
-                    Semua Produk
-                  </button>
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => handleCategoryClick(category.name)}
-                      className="block w-full text-left py-2 text-sm text-gray-600 hover:text-emerald-600"
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {user ? (
-              <>
-                <div className="border-t border-gray-200 my-2 pt-2">
-                  <div className="px-4 py-2 text-sm font-semibold text-gray-500">
-                    {user.role === "seller" || user.role === "admin" ? "Menu Admin" : "Menu Pembeli"}
-                  </div>
-                </div>
-
-                {(user.role === "seller" || user.role === "admin") && (
-                  <>
-                    <Link
-                      href="/admin"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                        />
-                      </svg>
-                      <span className="font-medium">Dashboard</span>
-                    </Link>
-                    <Link
-                      href="/admin/products"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                        />
-                      </svg>
-                      <span className="font-medium">Produk Saya</span>
-                    </Link>
-                    <Link
-                      href="/admin/orders"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                        />
-                      </svg>
-                      <span className="font-medium">Pesanan</span>
-                    </Link>
-                  </>
-                )}
-
-                {user.role === "buyer" && (
-                  <>
-                    <Link
-                      href="/cart"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors relative"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                        />
-                      </svg>
-                      <span className="font-medium">Keranjang</span>
-                      {cartCount > 0 && (
-                        <span className="ml-auto bg-[#308A50] text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
-                          {cartCount}
-                        </span>
-                      )}
-                    </Link>
-                    <Link
-                      href="/orders"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                        />
-                      </svg>
-                      <span className="font-medium">Pesanan</span>
-                    </Link>
-                  </>
-                )}
-
-                <Link
-                  href={user.role === "seller" || user.role === "admin" ? "/admin/settings" : "/profile"}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  <span className="font-medium">{user.name}</span>
-                </Link>
-              </>
-            ) : null}
-          </div>
-
-          {/* Bottom Actions */}
-          <div className="p-4 border-t border-gray-200 space-y-2">
-            {user ? (
-              <button
-                onClick={() => {
-                  handleLogout();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full bg-red-500 hover:bg-red-600 px-4 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-medium text-white shadow-md"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-                <span>Keluar</span>
-              </button>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full px-4 py-3 rounded-lg font-medium text-center border-2 border-[#308A50] text-[#308A50] hover:bg-[#308A50] hover:text-white transition-colors block"
-                >
-                  Masuk
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full bg-[#308A50] hover:bg-[#276D3F] px-4 py-3 rounded-lg font-medium text-white shadow-md text-center block transition-colors"
-                >
-                  Daftar
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }

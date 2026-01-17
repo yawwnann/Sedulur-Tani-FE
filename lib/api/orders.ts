@@ -19,7 +19,7 @@ export const checkoutApi = {
 };
 
 export const paymentApi = {
-  create: (data: { checkoutId: string }) => api.post("/payments/create", data),
+  create: (data: { checkout_id: string }) => api.post("/payments/create", data),
   getStatus: (checkoutId: string) => api.get(`/payments/${checkoutId}`),
 };
 

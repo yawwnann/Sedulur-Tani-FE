@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -52,7 +52,12 @@ export default function ClientLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const userRole = useSyncExternalStore(subscribe, getUserRole, getServerSnapshot);
+  const userRole = useSyncExternalStore(
+    subscribe,
+    getUserRole,
+    getServerSnapshot
+  );
+  const [isClient, setIsClient] = useState(false);
 
   const isAdminRoute = pathname?.startsWith("/admin");
   const isAuthRoute = pathname === "/login" || pathname === "/register";
@@ -66,12 +71,18 @@ export default function ClientLayout({
   });
 
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     // Jika admin/seller mengakses halaman buyer-only, redirect ke admin
     // Note: seller = admin karena penjual hanya 1
     if (userRole === "seller" || userRole === "admin") {
       // Biarkan akses ke halaman login/register
       if (isAuthRoute) return;
-      
+
       // Biarkan akses ke detail produk (untuk melihat produk)
       if (isProductDetail) return;
 
@@ -80,10 +91,25 @@ export default function ClientLayout({
         router.push("/admin");
       }
     }
-  }, [userRole, pathname, router, isAdminRoute, isAuthRoute, isBuyerOnlyRoute, isProductDetail]);
+  }, [
+    userRole,
+    pathname,
+    router,
+    isAdminRoute,
+    isAuthRoute,
+    isBuyerOnlyRoute,
+    isProductDetail,
+    isClient,
+  ]);
 
   // Jangan render jika seller/admin sedang di-redirect dari halaman buyer
-  if ((userRole === "seller" || userRole === "admin") && isBuyerOnlyRoute && !isAdminRoute && !isProductDetail) {
+  if (
+    isClient &&
+    (userRole === "seller" || userRole === "admin") &&
+    isBuyerOnlyRoute &&
+    !isAdminRoute &&
+    !isProductDetail
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
