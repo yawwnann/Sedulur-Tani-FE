@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { isTokenExpired } from "@/lib/utils/auth";
 
 type AuthStatus = "loading" | "authorized" | "unauthorized" | "no-user";
 
@@ -16,12 +17,31 @@ export default function AdminLayout({
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.dispatchEvent(new Event("auth-changed"));
+    setShowLogoutModal(false);
+    router.push("/login");
+  };
 
   // Check auth status on mount (client-side only)
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem("token");
       const userStr = localStorage.getItem("user");
+
+      // Check if token is expired
+      if (token && isTokenExpired(token)) {
+        console.log("Admin token expired, logging out...");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth-changed"));
+        setAuthStatus("no-user");
+        return;
+      }
 
       // Jika tidak ada token DAN tidak ada user, baru redirect
       if (!token && !userStr) {
@@ -232,12 +252,7 @@ export default function AdminLayout({
               </div>
             </div>
             <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                window.dispatchEvent(new Event("auth-changed"));
-                router.push("/login");
-              }}
+              onClick={() => setShowLogoutModal(true)}
               title="Sign Out"
               className="flex items-center justify-center gap-2 text-red-200 hover:text-white hover:bg-red-500/20 w-full px-4 py-2 rounded-lg text-sm font-medium"
             >
@@ -360,12 +375,7 @@ export default function AdminLayout({
               </div>
             </div>
             <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                window.dispatchEvent(new Event("auth-changed"));
-                router.push("/login");
-              }}
+              onClick={() => setShowLogoutModal(true)}
               className="flex items-center justify-center gap-2 text-red-200 hover:text-white hover:bg-red-500/20 w-full px-4 py-2 rounded-lg text-sm font-medium"
             >
               <svg
@@ -416,6 +426,52 @@ export default function AdminLayout({
         {/* Main Content Area */}
         <main className="flex-1">{children}</main>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg
+                  className="h-6 w-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Konfirmasi Logout
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Apakah Anda yakin ingin keluar dari admin panel? Anda perlu
+                login kembali untuk mengakses halaman ini.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                >
+                  Ya, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

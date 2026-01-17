@@ -61,20 +61,23 @@ export default function LoginPage() {
       } else {
         router.push("/");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login failed:", err);
-      console.error("Error response:", err.response?.data);
+      const error = err as {
+        response?: { status?: number; data?: { message?: string } };
+      };
+      console.error("Error response:", error.response?.data);
 
-      if (err.response?.status === 400) {
+      if (error.response?.status === 400) {
         setError(
-          "Email atau password tidak valid. Pastikan semua field terisi dengan benar."
+          "Email atau password tidak valid. Pastikan semua field terisi dengan benar.",
         );
-      } else if (err.response?.status === 401) {
+      } else if (error.response?.status === 401) {
         setError("Email atau password salah.");
       } else {
         setError(
-          err.response?.data?.message ||
-            "Gagal masuk. Periksa email dan kata sandi Anda."
+          error.response?.data?.message ||
+            "Gagal masuk. Periksa email dan kata sandi Anda.",
         );
       }
     } finally {
@@ -87,7 +90,7 @@ export default function LoginPage() {
       <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden">
         <div className="grid md:grid-cols-2">
           {/* Left Side - Image */}
-          <div className="relative bg-linear-to-br from-emerald-600 to-emerald-800 p-12 flex flex-col justify-between min-h-[500px]">
+          <div className="relative bg-linear-to-br from-emerald-600 to-emerald-800 p-12 hidden md:flex flex-col justify-between min-h-[500px]">
             <div className="absolute inset-0">
               <Image
                 src={bgLogin}

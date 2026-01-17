@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { AuthSessionProvider } from "@/components/auth/AuthSessionProvider";
 
 type UserRole = "buyer" | "seller" | "admin" | null;
 
@@ -55,9 +56,13 @@ export default function ClientLayout({
   const userRole = useSyncExternalStore(
     subscribe,
     getUserRole,
-    getServerSnapshot
+    getServerSnapshot,
   );
-  const [isClient, setIsClient] = useState(false);
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const isAdminRoute = pathname?.startsWith("/admin");
   const isAuthRoute = pathname === "/login" || pathname === "/register";
@@ -69,10 +74,6 @@ export default function ClientLayout({
     if (route === "/dashboard") return pathname === "/dashboard";
     return pathname?.startsWith(route);
   });
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   useEffect(() => {
     if (!isClient) return;
@@ -124,12 +125,14 @@ export default function ClientLayout({
   const shouldShowNavFooter = !isAdminRoute;
 
   return (
-    <>
-      {shouldShowNavFooter && <Navbar />}
-      <main className={shouldShowNavFooter ? "min-h-screen" : ""}>
-        {children}
-      </main>
-      {shouldShowNavFooter && <Footer />}
-    </>
+    <AuthSessionProvider>
+      <>
+        {shouldShowNavFooter && <Navbar />}
+        <main className={shouldShowNavFooter ? "min-h-screen" : ""}>
+          {children}
+        </main>
+        {shouldShowNavFooter && <Footer />}
+      </>
+    </AuthSessionProvider>
   );
 }

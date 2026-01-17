@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { productsApi, categoryApi } from "@/lib/api";
 import { Product, Category } from "@/lib/types";
-import Toast from "@/components/shared/Toast";
+import { toast } from "@/lib/toast";
 import Image from "next/image";
 import { exportToCSV, exportToPDF } from "@/lib/utils/export";
 
@@ -18,10 +18,6 @@ export default function AdminProductsPage() {
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,15 +45,8 @@ export default function AdminProductsPage() {
     fetchAllProducts(); // Fetch all products once for filtering
   }, []);
 
+  // Fetch products when page or items per page changes (only when no filters)
   useEffect(() => {
-    // Reset to page 1 when search/filter changes
-    if (searchQuery || selectedCategory) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery, selectedCategory]);
-
-  useEffect(() => {
-    // Only fetch from server when no active filters
     if (!searchQuery && !selectedCategory) {
       fetchProducts();
     }
@@ -75,7 +64,7 @@ export default function AdminProductsPage() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await productsApi.getAll(currentPage, itemsPerPage);
@@ -98,18 +87,17 @@ export default function AdminProductsPage() {
         message?: string;
       };
       console.error("Error response:", errorResponse.response?.data);
-      setToast({
-        message: `Gagal memuat produk: ${
+      toast.error(
+        `Gagal memuat produk: ${
           errorResponse.response?.data?.message ||
           errorResponse.message ||
           "Unknown error"
         }`,
-        type: "error",
-      });
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
 
   const fetchCategories = async () => {
     try {
@@ -123,7 +111,7 @@ export default function AdminProductsPage() {
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -151,10 +139,10 @@ export default function AdminProductsPage() {
     try {
       if (isEditing && currentId) {
         await productsApi.update(currentId, data);
-        setToast({ message: "Produk berhasil diperbarui", type: "success" });
+        toast.success("Produk berhasil diperbarui");
       } else {
         await productsApi.create(data);
-        setToast({ message: "Produk berhasil ditambahkan", type: "success" });
+        toast.success("Produk berhasil ditambahkan");
       }
       closeModal();
       // Refresh both products and allProducts to show new/updated images
@@ -163,7 +151,7 @@ export default function AdminProductsPage() {
       setIsRefreshing(false);
     } catch (error) {
       console.error("Failed to save product:", error);
-      setToast({ message: "Gagal menyimpan produk", type: "error" });
+      toast.error("Gagal menyimpan produk");
     } finally {
       setIsSubmitting(false);
     }
@@ -173,14 +161,14 @@ export default function AdminProductsPage() {
     if (window.confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
       try {
         await productsApi.delete(id);
-        setToast({ message: "Produk berhasil dihapus", type: "success" });
+        toast.success("Produk berhasil dihapus");
         // Refresh both products and allProducts after delete
         setIsRefreshing(true);
         await Promise.all([fetchProducts(), fetchAllProducts()]);
         setIsRefreshing(false);
       } catch (error) {
         console.error("Failed to delete product:", error);
-        setToast({ message: "Gagal menghapus produk", type: "error" });
+        toast.error("Gagal menghapus produk");
       }
     }
   };
@@ -262,7 +250,7 @@ export default function AdminProductsPage() {
   };
 
   const handleItemsPerPageChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
+    e: React.ChangeEvent<HTMLSelectElement>,
   ) => {
     setItemsPerPage(Number(e.target.value));
     setCurrentPage(1);
@@ -272,7 +260,7 @@ export default function AdminProductsPage() {
     const exportProducts = isFiltering ? filteredProducts : allProducts;
 
     if (exportProducts.length === 0) {
-      setToast({ message: "Tidak ada data untuk diekspor", type: "error" });
+      toast.error("Tidak ada data untuk diekspor");
       return;
     }
 
@@ -297,7 +285,7 @@ export default function AdminProductsPage() {
             { key: "harga", label: "Harga (Rp)" },
             { key: "stok", label: "Stok" },
             { key: "berat", label: "Berat" },
-          ]
+          ],
         );
       } else {
         exportToPDF(
@@ -311,7 +299,10 @@ export default function AdminProductsPage() {
             { key: "berat", label: "Berat" },
           ],
           [
-            { label: "Total Produk", value: exportProducts.length.toString() },
+            {
+              label: "Total Produk",
+              value: exportProducts.length.toString(),
+            },
             {
               label: "Stok Rendah (≤10)",
               value: exportProducts
@@ -324,17 +315,14 @@ export default function AdminProductsPage() {
                 .filter((p) => p.stock === 0)
                 .length.toString(),
             },
-          ]
+          ],
         );
       }
 
-      setToast({
-        message: `Data produk berhasil diekspor ke ${format.toUpperCase()}`,
-        type: "success",
-      });
+      toast.success(`Data produk berhasil diekspor ke ${format.toUpperCase()}`);
     } catch (error) {
       console.error("Export error:", error);
-      setToast({ message: "Gagal mengekspor data", type: "error" });
+      toast.error("Gagal mengekspor data");
     }
   };
 
@@ -795,8 +783,8 @@ export default function AdminProductsPage() {
                               product.stock > 10
                                 ? "bg-green-500"
                                 : product.stock > 0
-                                ? "bg-yellow-500"
-                                : "bg-red-500"
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
                             }`}
                           ></div>
                           <span className="text-sm text-gray-700">
@@ -1322,14 +1310,6 @@ export default function AdminProductsPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
       )}
     </div>
   );

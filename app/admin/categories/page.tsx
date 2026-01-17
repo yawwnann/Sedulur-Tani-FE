@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { categoryApi } from "@/lib/api";
 import { Category } from "@/lib/types";
+import { toast } from "@/lib/toast";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -35,7 +36,7 @@ export default function AdminCategoriesPage() {
       }
     } catch (error) {
       console.error("Failed to fetch categories:", error);
-      alert("Gagal mengambil data kategori");
+      toast.error("Gagal mengambil data kategori");
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ export default function AdminCategoriesPage() {
         formData.append("description", description);
 
         await categoryApi.update(selectedCategory.id, formData);
-        alert("Kategori berhasil diperbarui");
+        toast.success("Kategori berhasil diperbarui");
       } else {
         const formData = new FormData();
         formData.append("name", name);
@@ -88,7 +89,7 @@ export default function AdminCategoriesPage() {
         formData.append("description", description);
 
         await categoryApi.create(formData);
-        alert("Kategori berhasil dibuat");
+        toast.success("Kategori berhasil dibuat");
       }
 
       setIsModalOpen(false);
@@ -96,7 +97,7 @@ export default function AdminCategoriesPage() {
       fetchCategories();
     } catch (error) {
       console.error("Failed to save category:", error);
-      alert("Gagal menyimpan kategori");
+      toast.error("Gagal menyimpan kategori");
     }
   };
 
@@ -104,11 +105,11 @@ export default function AdminCategoriesPage() {
     if (window.confirm("Apakah Anda yakin ingin menghapus kategori ini?")) {
       try {
         await categoryApi.delete(id);
-        alert("Kategori berhasil dihapus");
+        toast.success("Kategori berhasil dihapus");
         fetchCategories();
       } catch (error) {
         console.error("Failed to delete category:", error);
-        alert("Gagal menghapus kategori");
+        toast.error("Gagal menghapus kategori");
       }
     }
   };

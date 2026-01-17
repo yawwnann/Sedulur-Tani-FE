@@ -17,7 +17,7 @@ export default function Navbar() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [hideMenuTimeout, setHideMenuTimeout] = useState<NodeJS.Timeout | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -39,8 +39,9 @@ export default function Navbar() {
         setCartCount(response.data.data.cart.total_items || 0);
       } catch (error: unknown) {
         // Jangan log error jika 401 (belum login) atau 404 (cart belum ada)
-        const axiosError = error as { response?: { status?: number } };
-        if (axiosError.response?.status !== 401 && axiosError.response?.status !== 404) {
+        const status = (error as { response?: { status?: number } }).response
+          ?.status;
+        if (status !== 401 && status !== 404) {
           console.error("Failed to fetch cart count:", error);
         }
         setCartCount(0);
@@ -81,6 +82,8 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileCategoryOpen, setIsMobileCategoryOpen] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,8 +97,7 @@ export default function Navbar() {
       if (searchQuery.trim().length >= 2) {
         setIsSearching(true);
         try {
-          // FIX: Pass parameters correctly based on your API structure
-          const response = await productsApi.getAll(undefined, 5, {
+          const response = await productsApi.getAll(1, 5, {
             search: searchQuery,
           });
           setSearchResults(response.data.data?.products || []);
@@ -173,6 +175,7 @@ export default function Navbar() {
     localStorage.removeItem("user");
     setUser(null);
     window.dispatchEvent(new Event("auth-changed"));
+    setIsLogoutDialogOpen(false);
     window.location.href = "/";
   };
 
@@ -400,7 +403,8 @@ export default function Navbar() {
                 )}
               </div>
 
-              <div className="relative hidden md:block">
+              {/* Search Bar Desktop */}
+              <div className="relative hidden lg:block">
                 <div
                   className={`flex items-center px-4 py-2 rounded-full transition-all w-64 focus-within:w-80 ${
                     isScrolled
@@ -539,7 +543,7 @@ export default function Navbar() {
                         </div>
 
                         {isAdminOrSeller && (
-                          <>
+                          <div>
                             <Link
                               href="/admin/products"
                               className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors"
@@ -580,11 +584,11 @@ export default function Navbar() {
                               </svg>
                               Pesanan Masuk
                             </Link>
-                          </>
+                          </div>
                         )}
 
-                        {user.role === "buyer" && (
-                          <>
+                        {user?.role === "buyer" && (
+                          <div>
                             <Link
                               href="/cart"
                               className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors justify-between group"
@@ -632,7 +636,7 @@ export default function Navbar() {
                               </svg>
                               Pesanan Saya
                             </Link>
-                          </>
+                          </div>
                         )}
 
                         <div className="border-t border-gray-100 my-2 pt-2">
@@ -660,7 +664,7 @@ export default function Navbar() {
                           </Link>
                           <button
                             onClick={() => {
-                              handleLogout();
+                              setIsLogoutDialogOpen(true);
                               setIsDropdownOpen(false);
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors text-left"
@@ -706,9 +710,504 @@ export default function Navbar() {
                 </>
               )}
             </div>
+
+            {/* Mobile Actions - Cart & Menu Button */}
+            <div className="flex lg:hidden items-center gap-3">
+              {user?.role === "buyer" && (
+                <Link
+                  href="/cart"
+                  className="relative p-2 rounded-lg transition-colors hover:bg-gray-100"
+                >
+                  <svg
+                    className={`w-6 h-6 ${isScrolled ? "text-gray-700" : "text-white"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+
+              {/* Hamburger Menu Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isScrolled
+                    ? "hover:bg-gray-100 text-gray-700"
+                    : "hover:bg-white/10 text-white"
+                }`}
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? (
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-60 lg:hidden mt-16"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* Mobile Menu Panel */}
+          <div className="fixed top-16 right-0 bottom-0 w-full sm:w-80 bg-white shadow-2xl z-70 lg:hidden overflow-y-auto animate-in slide-in-from-right duration-300">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Menu</h2>
+                <p className="text-xs text-gray-500">Navigasi Sedulur Tani</p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* User Info or Login/Register */}
+              {user ? (
+                <div className="bg-linear-to-r from-emerald-50 to-emerald-100 p-4 rounded-xl border border-emerald-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-xs text-emerald-700 font-medium mb-1">
+                        Halo,
+                      </p>
+                      <p className="font-bold text-gray-900 truncate text-base">
+                        {user.name}
+                      </p>
+                      <p className="text-xs text-emerald-600 font-semibold capitalize mt-1 inline-flex items-center gap-1">
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        {isAdminOrSeller ? "Admin / Penjual" : "Pembeli"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full bg-white border-2 border-emerald-600 text-emerald-600 px-5 py-3.5 rounded-xl font-semibold text-center block hover:bg-emerald-50 transition-all shadow-sm hover:shadow-md"
+                  >
+                    Masuk
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 px-5 py-3.5 rounded-xl font-semibold text-white text-center block transition-all shadow-md hover:shadow-lg"
+                  >
+                    Daftar Sekarang
+                  </Link>
+                </div>
+              )}
+
+              {/* Search Bar Mobile */}
+              <div className="relative">
+                <div className="flex items-center px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100 transition-all">
+                  <svg
+                    className="w-5 h-5 mr-2 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-4.35-4.35m1.4-5.4a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchInput}
+                    placeholder="Cari pupuk, tanaman..."
+                    className="bg-transparent w-full outline-none text-gray-800 placeholder-gray-500 text-sm"
+                  />
+                  {isSearching && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+                  )}
+                </div>
+
+                {/* Mobile Search Results */}
+                {showSearchDropdown && searchResults.length > 0 && (
+                  <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
+                    {searchResults.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => handleSearchResultClick(product.id)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                      >
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                          <Image
+                            src={
+                              product.image_url ||
+                              "https://via.placeholder.com/100"
+                            }
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {product.name}
+                          </span>
+                          <span className="text-xs text-gray-500 truncate">
+                            {product.category}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation Links */}
+              <nav className="space-y-2">
+                <Link
+                  href="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
+                    pathname === "/"
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
+                  </svg>
+                  Beranda
+                </Link>
+
+                <Link
+                  href="/products"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
+                    pathname === "/products"
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                  Produk
+                </Link>
+
+                {/* Mobile Category Dropdown */}
+                <div>
+                  <button
+                    onClick={() =>
+                      setIsMobileCategoryOpen(!isMobileCategoryOpen)
+                    }
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                        />
+                      </svg>
+                      Kategori
+                    </div>
+                    <svg
+                      className={`w-5 h-5 transition-transform ${
+                        isMobileCategoryOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* Category List */}
+                  {isMobileCategoryOpen && (
+                    <div className="mt-2 ml-4 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button
+                        onClick={() => handleCategoryClick("")}
+                        className="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                      >
+                        Semua Produk
+                      </button>
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          onClick={() => handleCategoryClick(category.name)}
+                          className="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                        >
+                          {category.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </nav>
+
+              {/* User Menu Items */}
+              {user && (
+                <div className="pt-6 border-t border-gray-200 space-y-2">
+                  {isAdminOrSeller && (
+                    <>
+                      <Link
+                        href="/admin/products"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                          />
+                        </svg>
+                        Produk Saya
+                      </Link>
+                      <Link
+                        href="/admin/orders"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        Pesanan Masuk
+                      </Link>
+                    </>
+                  )}
+
+                  {user?.role === "buyer" && (
+                    <Link
+                      href="/orders"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                        />
+                      </svg>
+                      Pesanan Saya
+                    </Link>
+                  )}
+
+                  <Link
+                    href={isAdminOrSeller ? "/admin/settings" : "/profile"}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    Profil Saya
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      setIsLogoutDialogOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Keluar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Logout Confirmation Dialog */}
+      {isLogoutDialogOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setIsLogoutDialogOpen(false)}
+          ></div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Keluar</h3>
+                    <p className="text-sm text-gray-500">Logout dari akun</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-600 mb-6">
+                  Apakah Anda yakin ingin keluar dari akun? Anda perlu login
+                  kembali untuk mengakses akun Anda.
+                </p>
+              </div>
+              <div className="p-6 border-t border-gray-200 flex gap-3">
+                <button
+                  onClick={() => setIsLogoutDialogOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Ya, Keluar
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

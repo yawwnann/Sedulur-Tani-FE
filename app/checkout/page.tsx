@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cartApi, addressApi, checkoutApi, paymentApi } from "@/lib/api";
 import { Cart, Address } from "@/lib/types";
-import Toast from "@/components/shared/Toast";
+import { toast } from "@/lib/toast";
 import SimpleShippingInfo from "@/components/checkout/SimpleShippingInfo";
 import PaymentModal from "@/components/checkout/PaymentModal";
 import CheckoutConfirmModal from "@/components/checkout/CheckoutConfirmModal";
@@ -25,10 +25,6 @@ export default function CheckoutPage() {
     invoiceUrl: string;
     checkoutId: string;
   }>({ show: false, invoiceUrl: "", checkoutId: "" });
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -61,10 +57,9 @@ export default function CheckoutPage() {
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setToast({
-        message: error.response?.data?.message || "Gagal memuat data checkout",
-        type: "error",
-      });
+      toast.error(
+        error.response?.data?.message || "Gagal memuat data checkout"
+      );
     } finally {
       setLoading(false);
     }
@@ -94,7 +89,7 @@ export default function CheckoutPage() {
 
   const handleCheckout = async () => {
     if (!selectedAddress) {
-      setToast({ message: "Silakan pilih alamat pengiriman", type: "error" });
+      toast.error("Silakan pilih alamat pengiriman");
       return;
     }
 
@@ -138,16 +133,13 @@ export default function CheckoutPage() {
         setShowConfirmModal(false); // Close confirm modal
         setProcessing(false);
       } else {
-        setToast({ message: "Gagal memproses pembayaran", type: "error" });
+        toast.error("Gagal memproses pembayaran");
         setProcessing(false);
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       console.error("Checkout error:", error);
-      setToast({
-        message: error.response?.data?.message || "Checkout gagal",
-        type: "error",
-      });
+      toast.error(error.response?.data?.message || "Checkout gagal");
       setProcessing(false);
     }
   };
@@ -479,14 +471,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
 
       {showConfirmModal && cart && selectedAddress && (
         <CheckoutConfirmModal

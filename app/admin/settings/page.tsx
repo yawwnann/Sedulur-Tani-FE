@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useTransition, useRef } from 'react';
-import Image from 'next/image';
-import { api } from '@/lib/api/client';
-import ComingSoon from '@/components/shared/ComingSoon';
+import { useState, useEffect, useTransition, useRef } from "react";
+import Image from "next/image";
+import { api } from "@/lib/api/client";
+import ComingSoon from "@/components/shared/ComingSoon";
 
 interface StoreSettings {
   storeName: string;
@@ -28,8 +28,8 @@ interface UserData {
 
 // Helper function to get initial user data
 function getInitialUser(): UserData | null {
-  if (typeof window === 'undefined') return null;
-  const userStr = localStorage.getItem('user');
+  if (typeof window === "undefined") return null;
+  const userStr = localStorage.getItem("user");
   if (userStr) {
     try {
       return JSON.parse(userStr);
@@ -42,7 +42,7 @@ function getInitialUser(): UserData | null {
 
 // Helper function to get initial settings
 function getInitialSettings<T>(key: string, defaultValue: T): T {
-  if (typeof window === 'undefined') return defaultValue;
+  if (typeof window === "undefined") return defaultValue;
   const saved = localStorage.getItem(key);
   if (saved) {
     try {
@@ -55,36 +55,43 @@ function getInitialSettings<T>(key: string, defaultValue: T): T {
 }
 
 const defaultStoreSettings: StoreSettings = {
-  storeName: 'Sedulur Tani',
-  storeDescription: 'Marketplace pupuk dan kebutuhan pertanian terlengkap',
-  storeEmail: 'info@sedulurtani.com',
-  storePhone: '081234567890',
-  storeAddress: 'Jl. Pertanian No. 123, Yogyakarta',
-  storeLogo: '',
+  storeName: "Sedulur Tani",
+  storeDescription: "Marketplace pupuk dan kebutuhan pertanian terlengkap",
+  storeEmail: "info@sedulurtani.com",
+  storePhone: "081234567890",
+  storeAddress: "Jl. Pertanian No. 123, Yogyakarta",
+  storeLogo: "",
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('store');
+  const [activeTab, setActiveTab] = useState("store");
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
-  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
+  const [storeSettings, setStoreSettings] =
+    useState<StoreSettings>(defaultStoreSettings);
   const [accountSettings, setAccountSettings] = useState<AccountSettings>({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAlert, setShowAlert] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'info' as 'info' | 'success' | 'warning' | 'error' });
+  const [alertConfig, setAlertConfig] = useState({
+    title: "",
+    message: "",
+    type: "info" as "info" | "success" | "warning" | "error",
+  });
 
   // Load data on mount (client-side only)
   useEffect(() => {
     startTransition(() => {
       setUser(getInitialUser());
-      setStoreSettings(getInitialSettings('storeSettings', defaultStoreSettings));
+      setStoreSettings(
+        getInitialSettings("storeSettings", defaultStoreSettings),
+      );
     });
   }, []);
 
@@ -94,15 +101,23 @@ export default function SettingsPage() {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setAlertConfig({ title: 'Format File Salah', message: 'File harus berupa gambar!', type: 'error' });
+    if (!file.type.startsWith("image/")) {
+      setAlertConfig({
+        title: "Format File Salah",
+        message: "File harus berupa gambar!",
+        type: "error",
+      });
       setShowAlert(true);
       return;
     }
 
     // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      setAlertConfig({ title: 'File Terlalu Besar', message: 'Ukuran file maksimal 2MB!', type: 'error' });
+      setAlertConfig({
+        title: "File Terlalu Besar",
+        message: "Ukuran file maksimal 2MB!",
+        type: "error",
+      });
       setShowAlert(true);
       return;
     }
@@ -111,52 +126,60 @@ export default function SettingsPage() {
 
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append("image", file);
 
-      const response = await api.post('/cloudinary/test-upload', formData, {
+      const response = await api.post("/cloudinary/test-upload", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
 
       if (response.data.success) {
         const logoUrl = response.data.data.secure_url;
-        setStoreSettings(prev => ({ ...prev, storeLogo: logoUrl }));
+        setStoreSettings((prev) => ({ ...prev, storeLogo: logoUrl }));
         // Auto save to localStorage
         const updatedSettings = { ...storeSettings, storeLogo: logoUrl };
-        localStorage.setItem('storeSettings', JSON.stringify(updatedSettings));
+        localStorage.setItem("storeSettings", JSON.stringify(updatedSettings));
       } else {
-        setAlertConfig({ title: 'Upload Gagal', message: 'Gagal mengupload logo!', type: 'error' });
+        setAlertConfig({
+          title: "Upload Gagal",
+          message: "Gagal mengupload logo!",
+          type: "error",
+        });
         setShowAlert(true);
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      setAlertConfig({ title: 'Terjadi Kesalahan', message: 'Terjadi kesalahan saat mengupload logo!', type: 'error' });
+      console.error("Upload error:", error);
+      setAlertConfig({
+        title: "Terjadi Kesalahan",
+        message: "Terjadi kesalahan saat mengupload logo!",
+        type: "error",
+      });
       setShowAlert(true);
     } finally {
       setUploadingLogo(false);
       // Reset file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
 
   // Handle remove logo
   const handleRemoveLogo = () => {
-    setStoreSettings(prev => ({ ...prev, storeLogo: '' }));
-    const updatedSettings = { ...storeSettings, storeLogo: '' };
-    localStorage.setItem('storeSettings', JSON.stringify(updatedSettings));
+    setStoreSettings((prev) => ({ ...prev, storeLogo: "" }));
+    const updatedSettings = { ...storeSettings, storeLogo: "" };
+    localStorage.setItem("storeSettings", JSON.stringify(updatedSettings));
   };
 
   const handleSave = async () => {
     setLoading(true);
-    
+
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Save to localStorage (in real app, this would be API call)
-    localStorage.setItem('storeSettings', JSON.stringify(storeSettings));
+    localStorage.setItem("storeSettings", JSON.stringify(storeSettings));
 
     setLoading(false);
     setSaved(true);
@@ -165,50 +188,96 @@ export default function SettingsPage() {
 
   const handlePasswordChange = async () => {
     if (accountSettings.newPassword !== accountSettings.confirmPassword) {
-      setAlertConfig({ title: 'Password Tidak Cocok', message: 'Password baru dan konfirmasi tidak cocok!', type: 'error' });
+      setAlertConfig({
+        title: "Password Tidak Cocok",
+        message: "Password baru dan konfirmasi tidak cocok!",
+        type: "error",
+      });
       setShowAlert(true);
       return;
     }
     if (accountSettings.newPassword.length < 6) {
-      setAlertConfig({ title: 'Password Terlalu Pendek', message: 'Password minimal 6 karakter!', type: 'error' });
+      setAlertConfig({
+        title: "Password Terlalu Pendek",
+        message: "Password minimal 6 karakter!",
+        type: "error",
+      });
       setShowAlert(true);
       return;
     }
 
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     setLoading(false);
-    
-    setAlertConfig({ title: 'Berhasil', message: 'Password berhasil diubah!', type: 'success' });
+
+    setAlertConfig({
+      title: "Berhasil",
+      message: "Password berhasil diubah!",
+      type: "success",
+    });
     setShowAlert(true);
     setAccountSettings({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     });
   };
 
   const tabs = [
-    { id: 'store', name: 'Profil Toko', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-    { id: 'account', name: 'Akun', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-    { id: 'shipping', name: 'Pengiriman', icon: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4' },
-    { id: 'notifications', name: 'Notifikasi', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
-    { id: 'appearance', name: 'Tampilan', icon: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01' },
+    {
+      id: "store",
+      name: "Profil Toko",
+      icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    },
+    {
+      id: "account",
+      name: "Akun",
+      icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    },
+    {
+      id: "shipping",
+      name: "Pengiriman",
+      icon: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4",
+    },
+    {
+      id: "notifications",
+      name: "Notifikasi",
+      icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+    },
+    {
+      id: "appearance",
+      name: "Tampilan",
+      icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
+    },
   ];
 
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Pengaturan</h1>
-        <p className="text-gray-600 mt-1">Kelola pengaturan toko dan akun Anda</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+          Pengaturan
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Kelola pengaturan toko dan akun Anda
+        </p>
       </div>
 
       {/* Success Toast */}
       {saved && (
         <div className="fixed top-4 right-4 bg-emerald-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in slide-in-from-top">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
           </svg>
           Pengaturan berhasil disimpan!
         </div>
@@ -225,12 +294,22 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left whitespace-nowrap transition-all ${
                     activeTab === tab.id
-                      ? 'bg-emerald-500 text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? "bg-emerald-500 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
+                  <svg
+                    className="w-5 h-5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d={tab.icon}
+                    />
                   </svg>
                   <span className="font-medium">{tab.name}</span>
                 </button>
@@ -241,11 +320,15 @@ export default function SettingsPage() {
           {/* Content */}
           <div className="flex-1 p-6 lg:p-8">
             {/* Store Settings */}
-            {activeTab === 'store' && (
+            {activeTab === "store" && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-1">Profil Toko</h2>
-                  <p className="text-sm text-gray-500">Informasi dasar tentang toko Anda</p>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                    Profil Toko
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Informasi dasar tentang toko Anda
+                  </p>
                 </div>
 
                 <div className="grid gap-6">
@@ -256,7 +339,12 @@ export default function SettingsPage() {
                     <input
                       type="text"
                       value={storeSettings.storeName}
-                      onChange={(e) => setStoreSettings({ ...storeSettings, storeName: e.target.value })}
+                      onChange={(e) =>
+                        setStoreSettings({
+                          ...storeSettings,
+                          storeName: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                     />
                   </div>
@@ -268,7 +356,12 @@ export default function SettingsPage() {
                     <textarea
                       rows={3}
                       value={storeSettings.storeDescription}
-                      onChange={(e) => setStoreSettings({ ...storeSettings, storeDescription: e.target.value })}
+                      onChange={(e) =>
+                        setStoreSettings({
+                          ...storeSettings,
+                          storeDescription: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none"
                     />
                   </div>
@@ -281,7 +374,12 @@ export default function SettingsPage() {
                       <input
                         type="email"
                         value={storeSettings.storeEmail}
-                        onChange={(e) => setStoreSettings({ ...storeSettings, storeEmail: e.target.value })}
+                        onChange={(e) =>
+                          setStoreSettings({
+                            ...storeSettings,
+                            storeEmail: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                       />
                     </div>
@@ -293,7 +391,12 @@ export default function SettingsPage() {
                       <input
                         type="tel"
                         value={storeSettings.storePhone}
-                        onChange={(e) => setStoreSettings({ ...storeSettings, storePhone: e.target.value })}
+                        onChange={(e) =>
+                          setStoreSettings({
+                            ...storeSettings,
+                            storePhone: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                       />
                     </div>
@@ -306,7 +409,12 @@ export default function SettingsPage() {
                     <textarea
                       rows={2}
                       value={storeSettings.storeAddress}
-                      onChange={(e) => setStoreSettings({ ...storeSettings, storeAddress: e.target.value })}
+                      onChange={(e) =>
+                        setStoreSettings({
+                          ...storeSettings,
+                          storeAddress: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none"
                     />
                   </div>
@@ -332,18 +440,38 @@ export default function SettingsPage() {
                               className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-md"
                               title="Hapus Logo"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
                               </svg>
                             </button>
                           </>
                         ) : (
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <svg
+                            className="w-8 h-8 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
                           </svg>
                         )}
                       </div>
-                      
+
                       {/* Upload Button */}
                       <div className="flex flex-col gap-2">
                         <input
@@ -357,9 +485,9 @@ export default function SettingsPage() {
                         <label
                           htmlFor="logo-upload"
                           className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors flex items-center gap-2 ${
-                            uploadingLogo 
-                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                              : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                            uploadingLogo
+                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
                           }`}
                         >
                           {uploadingLogo ? (
@@ -369,14 +497,26 @@ export default function SettingsPage() {
                             </>
                           ) : (
                             <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                />
                               </svg>
                               Upload Logo
                             </>
                           )}
                         </label>
-                        <p className="text-xs text-gray-500">PNG, JPG max 2MB</p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG max 2MB
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -395,8 +535,18 @@ export default function SettingsPage() {
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
                         </svg>
                         Simpan Perubahan
                       </>
@@ -407,24 +557,32 @@ export default function SettingsPage() {
             )}
 
             {/* Account Settings */}
-            {activeTab === 'account' && (
+            {activeTab === "account" && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-1">Pengaturan Akun</h2>
-                  <p className="text-sm text-gray-500">Kelola kredensial dan keamanan akun</p>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                    Pengaturan Akun
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Kelola kredensial dan keamanan akun
+                  </p>
                 </div>
 
                 {/* Profile Info */}
                 <div className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                      {user?.name?.charAt(0) || 'A'}
+                      {user?.name?.charAt(0) || "A"}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{user?.name || 'Admin User'}</h3>
-                      <p className="text-gray-500">{user?.email || 'admin@sedulurtani.com'}</p>
+                      <h3 className="font-semibold text-gray-900">
+                        {user?.name || "Admin User"}
+                      </h3>
+                      <p className="text-gray-500">
+                        {user?.email || "admin@sedulurtani.com"}
+                      </p>
                       <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full capitalize">
-                        {user?.role || 'seller'}
+                        {user?.role || "seller"}
                       </span>
                     </div>
                   </div>
@@ -432,7 +590,9 @@ export default function SettingsPage() {
 
                 {/* Change Password */}
                 <div className="border-t pt-6">
-                  <h3 className="font-medium text-gray-900 mb-4">Ubah Password</h3>
+                  <h3 className="font-medium text-gray-900 mb-4">
+                    Ubah Password
+                  </h3>
                   <div className="grid gap-4 max-w-md">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -441,7 +601,12 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         value={accountSettings.currentPassword}
-                        onChange={(e) => setAccountSettings({ ...accountSettings, currentPassword: e.target.value })}
+                        onChange={(e) =>
+                          setAccountSettings({
+                            ...accountSettings,
+                            currentPassword: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                       />
                     </div>
@@ -452,7 +617,12 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         value={accountSettings.newPassword}
-                        onChange={(e) => setAccountSettings({ ...accountSettings, newPassword: e.target.value })}
+                        onChange={(e) =>
+                          setAccountSettings({
+                            ...accountSettings,
+                            newPassword: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                       />
                     </div>
@@ -463,13 +633,22 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         value={accountSettings.confirmPassword}
-                        onChange={(e) => setAccountSettings({ ...accountSettings, confirmPassword: e.target.value })}
+                        onChange={(e) =>
+                          setAccountSettings({
+                            ...accountSettings,
+                            confirmPassword: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                       />
                     </div>
                     <button
                       onClick={handlePasswordChange}
-                      disabled={loading || !accountSettings.currentPassword || !accountSettings.newPassword}
+                      disabled={
+                        loading ||
+                        !accountSettings.currentPassword ||
+                        !accountSettings.newPassword
+                      }
                       className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors font-medium disabled:opacity-50 w-fit"
                     >
                       Ubah Password
@@ -479,13 +658,16 @@ export default function SettingsPage() {
 
                 {/* Danger Zone */}
                 <div className="border-t pt-6">
-                  <h3 className="font-medium text-red-600 mb-4">Zona Berbahaya</h3>
+                  <h3 className="font-medium text-red-600 mb-4">
+                    Zona Berbahaya
+                  </h3>
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h4 className="font-medium text-red-800">Hapus Akun</h4>
                         <p className="text-sm text-red-600 mt-1">
-                          Setelah dihapus, semua data akan hilang permanen dan tidak dapat dikembalikan.
+                          Setelah dihapus, semua data akan hilang permanen dan
+                          tidak dapat dikembalikan.
                         </p>
                       </div>
                       <button className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium whitespace-nowrap">
@@ -498,22 +680,28 @@ export default function SettingsPage() {
             )}
 
             {/* Shipping Settings */}
-            {activeTab === 'shipping' && (
-              <ComingSoon 
+            {activeTab === "shipping" && (
+              <ComingSoon
                 title="Pengaturan Pengiriman"
                 description="Fitur pengaturan pengiriman seperti gratis ongkir dan kurir default sedang dalam pengembangan"
               >
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Pengaturan Pengiriman</h2>
-                    <p className="text-sm text-gray-500">Atur preferensi pengiriman toko</p>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                      Pengaturan Pengiriman
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Atur preferensi pengiriman toko
+                    </p>
                   </div>
 
                   <div className="grid gap-6">
                     {/* Free Shipping Toggle */}
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <div>
-                        <h3 className="font-medium text-gray-900">Aktifkan Gratis Ongkir</h3>
+                        <h3 className="font-medium text-gray-900">
+                          Aktifkan Gratis Ongkir
+                        </h3>
                         <p className="text-sm text-gray-500 mt-1">
                           Berikan gratis ongkir untuk pembelian minimum tertentu
                         </p>
@@ -528,7 +716,9 @@ export default function SettingsPage() {
                         Minimum Pembelian Gratis Ongkir
                       </label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                          Rp
+                        </span>
                         <input
                           type="number"
                           defaultValue={500000}
@@ -558,7 +748,7 @@ export default function SettingsPage() {
                         Kurir Tersedia
                       </label>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {['JNE', 'J&T Express', 'SiCepat'].map((courier) => (
+                        {["JNE", "J&T Express", "SiCepat"].map((courier) => (
                           <label
                             key={courier}
                             className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl"
@@ -569,7 +759,9 @@ export default function SettingsPage() {
                               className="w-5 h-5 text-emerald-500 rounded"
                               disabled
                             />
-                            <span className="font-medium text-gray-700">{courier}</span>
+                            <span className="font-medium text-gray-700">
+                              {courier}
+                            </span>
                           </label>
                         ))}
                       </div>
@@ -580,22 +772,40 @@ export default function SettingsPage() {
             )}
 
             {/* Notification Settings */}
-            {activeTab === 'notifications' && (
-              <ComingSoon 
+            {activeTab === "notifications" && (
+              <ComingSoon
                 title="Pengaturan Notifikasi"
                 description="Fitur notifikasi email untuk pesanan baru, pembayaran, dan pengiriman sedang dalam pengembangan"
               >
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Pengaturan Notifikasi</h2>
-                    <p className="text-sm text-gray-500">Atur notifikasi email yang ingin Anda terima</p>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                      Pengaturan Notifikasi
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Atur notifikasi email yang ingin Anda terima
+                    </p>
                   </div>
 
                   <div className="space-y-4">
                     {[
-                      { title: 'Pesanan Baru', description: 'Terima email saat ada pesanan baru masuk', enabled: true },
-                      { title: 'Pembayaran Diterima', description: 'Terima email saat pembayaran berhasil dikonfirmasi', enabled: true },
-                      { title: 'Status Pengiriman', description: 'Terima email saat status pengiriman berubah', enabled: false },
+                      {
+                        title: "Pesanan Baru",
+                        description: "Terima email saat ada pesanan baru masuk",
+                        enabled: true,
+                      },
+                      {
+                        title: "Pembayaran Diterima",
+                        description:
+                          "Terima email saat pembayaran berhasil dikonfirmasi",
+                        enabled: true,
+                      },
+                      {
+                        title: "Status Pengiriman",
+                        description:
+                          "Terima email saat status pengiriman berubah",
+                        enabled: false,
+                      },
                     ].map((item, index) => (
                       <div
                         key={index}
@@ -603,17 +813,35 @@ export default function SettingsPage() {
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            <svg
+                              className="w-5 h-5 text-emerald-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                              />
                             </svg>
                           </div>
                           <div>
-                            <h3 className="font-medium text-gray-900">{item.title}</h3>
-                            <p className="text-sm text-gray-500">{item.description}</p>
+                            <h3 className="font-medium text-gray-900">
+                              {item.title}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                              {item.description}
+                            </p>
                           </div>
                         </div>
-                        <button className={`relative w-14 h-8 rounded-full ${item.enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}>
-                          <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow ${item.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                        <button
+                          className={`relative w-14 h-8 rounded-full ${item.enabled ? "bg-emerald-500" : "bg-gray-300"}`}
+                        >
+                          <span
+                            className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow ${item.enabled ? "translate-x-7" : "translate-x-1"}`}
+                          />
                         </button>
                       </div>
                     ))}
@@ -623,33 +851,47 @@ export default function SettingsPage() {
             )}
 
             {/* Appearance Settings */}
-            {activeTab === 'appearance' && (
-              <ComingSoon 
+            {activeTab === "appearance" && (
+              <ComingSoon
                 title="Pengaturan Tampilan"
                 description="Fitur kustomisasi tema, warna, dan layout dashboard sedang dalam pengembangan"
               >
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Pengaturan Tampilan</h2>
-                    <p className="text-sm text-gray-500">Sesuaikan tampilan dashboard admin</p>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                      Pengaturan Tampilan
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Sesuaikan tampilan dashboard admin
+                    </p>
                   </div>
 
                   <div className="space-y-6">
                     {/* Theme */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Tema</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Tema
+                      </label>
                       <div className="grid grid-cols-3 gap-4">
                         {[
-                          { name: 'Terang', bg: 'bg-white', selected: true },
-                          { name: 'Gelap', bg: 'bg-gray-900', selected: false },
-                          { name: 'Sistem', bg: 'bg-gradient-to-r from-white to-gray-900', selected: false },
+                          { name: "Terang", bg: "bg-white", selected: true },
+                          { name: "Gelap", bg: "bg-gray-900", selected: false },
+                          {
+                            name: "Sistem",
+                            bg: "bg-linear-to-r from-white to-gray-900",
+                            selected: false,
+                          },
                         ].map((theme) => (
                           <button
                             key={theme.name}
-                            className={`p-4 rounded-xl border-2 ${theme.selected ? 'border-emerald-500' : 'border-gray-200'}`}
+                            className={`p-4 rounded-xl border-2 ${theme.selected ? "border-emerald-500" : "border-gray-200"}`}
                           >
-                            <div className={`w-full h-16 rounded-lg ${theme.bg} mb-3 border border-gray-200`}></div>
-                            <span className="font-medium text-gray-700">{theme.name}</span>
+                            <div
+                              className={`w-full h-16 rounded-lg ${theme.bg} mb-3 border border-gray-200`}
+                            ></div>
+                            <span className="font-medium text-gray-700">
+                              {theme.name}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -657,12 +899,20 @@ export default function SettingsPage() {
 
                     {/* Primary Color */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Warna Utama</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Warna Utama
+                      </label>
                       <div className="flex gap-3">
-                        {['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500'].map((color, i) => (
+                        {[
+                          "bg-emerald-500",
+                          "bg-blue-500",
+                          "bg-purple-500",
+                          "bg-orange-500",
+                          "bg-red-500",
+                        ].map((color, i) => (
                           <button
                             key={color}
-                            className={`w-10 h-10 rounded-full ${color} ${i === 0 ? 'ring-4 ring-offset-2 ring-emerald-500/50' : ''}`}
+                            className={`w-10 h-10 rounded-full ${color} ${i === 0 ? "ring-4 ring-offset-2 ring-emerald-500/50" : ""}`}
                           />
                         ))}
                       </div>
@@ -670,21 +920,27 @@ export default function SettingsPage() {
 
                     {/* Sidebar Position */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Posisi Sidebar</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Posisi Sidebar
+                      </label>
                       <div className="flex gap-4">
                         <button className="flex-1 p-4 rounded-xl border-2 border-emerald-500">
                           <div className="flex gap-2 mb-2">
                             <div className="w-4 h-8 bg-emerald-500 rounded"></div>
                             <div className="flex-1 h-8 bg-gray-200 rounded"></div>
                           </div>
-                          <span className="text-sm font-medium text-gray-700">Kiri</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Kiri
+                          </span>
                         </button>
                         <button className="flex-1 p-4 rounded-xl border-2 border-gray-200">
                           <div className="flex gap-2 mb-2">
                             <div className="flex-1 h-8 bg-gray-200 rounded"></div>
                             <div className="w-4 h-8 bg-gray-400 rounded"></div>
                           </div>
-                          <span className="text-sm font-medium text-gray-700">Kanan</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Kanan
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -698,11 +954,15 @@ export default function SettingsPage() {
 
       {/* Alert Component */}
       {showAlert && (
-        <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-          alertConfig.type === 'success' ? 'bg-green-500 text-white' :
-          alertConfig.type === 'error' ? 'bg-red-500 text-white' :
-          'bg-blue-500 text-white'
-        }`}>
+        <div
+          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            alertConfig.type === "success"
+              ? "bg-green-500 text-white"
+              : alertConfig.type === "error"
+                ? "bg-red-500 text-white"
+                : "bg-blue-500 text-white"
+          }`}
+        >
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-semibold">{alertConfig.title}</h3>

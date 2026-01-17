@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { shippingApi, Destination, ShippingCost } from "@/lib/api/addresses";
+import { useState, useEffect, useCallback } from "react";
+import { shippingApi, ShippingCost } from "@/lib/api/addresses";
 
 interface ShippingCalculatorProps {
   weight: number; // in grams
@@ -11,18 +11,16 @@ interface ShippingCalculatorProps {
     cost: number,
     courier: string,
     service: string,
-    etd: string
+    etd: string,
   ) => void;
 }
 
-const COURIERS = [
-  { code: "jne", name: "JNE" },
-  { code: "jnt", name: "J&T" },
-  { code: "sicepat", name: "SiCepat" },
-  { code: "anteraja", name: "AnterAja" },
-  { code: "ninja", name: "Ninja Xpress" },
-  { code: "idexpress", name: "ID Express" },
-];
+interface DestinationData {
+  id?: string;
+  code?: string;
+  name?: string;
+  city_name?: string;
+}
 
 export default function ShippingCalculator({
   weight,
@@ -30,78 +28,32 @@ export default function ShippingCalculator({
   destinationCity,
   onShippingSelected,
 }: ShippingCalculatorProps) {
-  const [destinations, setDestinations] = useState<any[]>([]);
+  const [destinations, setDestinations] = useState<DestinationData[]>([]);
   const [selectedDestination, setSelectedDestination] = useState("");
   const [selectedCourier, setSelectedCourier] = useState("jne");
   const [shippingCosts, setShippingCosts] = useState<ShippingCost[]>([]);
   const [selectedService, setSelectedService] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState("");
   const [fromCache, setFromCache] = useState(false);
 
-  // Load destinations on mount
-  useEffect(() => {
-    loadDestinations();
-  }, []);
-
-  // Set destination from user's address
-  useEffect(() => {
-    if (destinationCity && destinations.length > 0) {
-      // Find matching destination by city name
-      const matchingDest = destinations.find(
-        (dest) =>
-          (dest.name || dest.city_name)
-            ?.toLowerCase()
-            .includes(destinationCity.toLowerCase()) ||
-          destinationCity
-            .toLowerCase()
-            .includes((dest.name || dest.city_name)?.toLowerCase())
-      );
-
-      if (matchingDest) {
-        setSelectedDestination(
-          matchingDest.id || matchingDest.code || matchingDest.name
-        );
-      }
-    }
-  }, [destinationCity, destinations]);
-
-  // Auto-calculate when destination and courier are selected
-  useEffect(() => {
-    if (selectedDestination && selectedCourier && weight > 0) {
-      calculateShipping();
-    }
-  }, [selectedDestination, selectedCourier]);
-
-  // Auto-calculate shipping when destination city is set (from user's address)
-  useEffect(() => {
-    if (selectedDestination && weight > 0 && destinationCity) {
-      // Auto-select JNE as default courier
-      setSelectedCourier("jne");
-    }
-  }, [selectedDestination, weight, destinationCity]);
-
-  const loadDestinations = async () => {
+  const loadDestinations = useCallback(async () => {
     try {
-      setLoading(true);
       const data = await shippingApi.getDestinations();
 
       // Transform data based on Komerce API response structure
       if (data && Array.isArray(data)) {
         setDestinations(data);
-      } else if (data && data.destinations) {
-        setDestinations(data.destinations);
+      } else if (data && "destinations" in data) {
+        setDestinations(data.destinations as DestinationData[]);
       }
     } catch (err) {
       console.error("Failed to load destinations:", err);
       setError("Gagal memuat daftar tujuan");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
-  const calculateShipping = async () => {
+  const calculateShipping = useCallback(async () => {
     if (!selectedDestination || !selectedCourier || weight <= 0) return;
 
     try {
@@ -123,7 +75,7 @@ export default function ShippingCalculator({
       // Auto-select REG (regular) service if available, otherwise first service
       if (result.costs.length > 0) {
         const regService = result.costs.find((s) =>
-          s.service.toLowerCase().includes("reg")
+          s.service.toLowerCase().includes("reg"),
         );
         const defaultService = regService || result.costs[0];
         setSelectedService(defaultService.service);
@@ -131,27 +83,69 @@ export default function ShippingCalculator({
           defaultService.cost,
           selectedCourier.toUpperCase(),
           defaultService.service,
-          defaultService.etd
+          defaultService.etd,
         );
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to calculate shipping:", err);
-      setError(err.response?.data?.message || "Gagal menghitung ongkir");
+      const errorMessage =
+        err instanceof Error && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : "Gagal menghitung ongkir";
+      setError(errorMessage || "Gagal menghitung ongkir");
       setShippingCosts([]);
     } finally {
       setCalculating(false);
     }
-  };
+  }, [
+    selectedDestination,
+    selectedCourier,
+    weight,
+    originCityId,
+    onShippingSelected,
+  ]);
 
-  const handleServiceSelect = (service: ShippingCost) => {
-    setSelectedService(service.service);
-    onShippingSelected(
-      service.cost,
-      selectedCourier.toUpperCase(),
-      service.service,
-      service.etd
-    );
-  };
+  // Load destinations on mount
+  useEffect(() => {
+    loadDestinations();
+  }, [loadDestinations]);
+
+  // Set destination from user's address
+  useEffect(() => {
+    if (destinationCity && destinations.length > 0) {
+      // Find matching destination by city name
+      const matchingDest = destinations.find((dest) => {
+        const destName = (dest.name || dest.city_name)?.toLowerCase();
+        if (!destName) return false;
+        return (
+          destName.includes(destinationCity.toLowerCase()) ||
+          destinationCity.toLowerCase().includes(destName)
+        );
+      });
+
+      if (matchingDest) {
+        setSelectedDestination(
+          matchingDest.id || matchingDest.code || matchingDest.name || "",
+        );
+      }
+    }
+  }, [destinationCity, destinations]);
+
+  // Auto-calculate when destination and courier are selected
+  useEffect(() => {
+    if (selectedDestination && selectedCourier && weight > 0) {
+      calculateShipping();
+    }
+  }, [selectedDestination, selectedCourier, weight, calculateShipping]);
+
+  // Auto-calculate shipping when destination city is set (from user's address)
+  useEffect(() => {
+    if (selectedDestination && weight > 0 && destinationCity) {
+      // Auto-select JNE as default courier
+      setSelectedCourier("jne");
+    }
+  }, [selectedDestination, weight, destinationCity]);
 
   return (
     <div className="space-y-4">

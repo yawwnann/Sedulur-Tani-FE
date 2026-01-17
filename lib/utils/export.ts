@@ -6,19 +6,15 @@
 export function exportToCSV(
   data: Record<string, unknown>[],
   filename: string,
-  headers?: { key: string; label: string }[]
+  headers?: { key: string; label: string }[],
 ) {
   if (!data || data.length === 0) {
     throw new Error("No data to export");
   }
 
   // Get headers from first object if not provided
-  const keys = headers
-    ? headers.map((h) => h.key)
-    : Object.keys(data[0]);
-  const labels = headers
-    ? headers.map((h) => h.label)
-    : Object.keys(data[0]);
+  const keys = headers ? headers.map((h) => h.key) : Object.keys(data[0]);
+  const labels = headers ? headers.map((h) => h.label) : Object.keys(data[0]);
 
   // Create CSV content
   const csvContent = [
@@ -43,7 +39,7 @@ export function exportToCSV(
           if (value instanceof Date) return value.toLocaleDateString("id-ID");
           return String(value);
         })
-        .join(",")
+        .join(","),
     ),
   ].join("\n");
 
@@ -61,7 +57,7 @@ export function exportToPDF(
   title: string,
   data: Record<string, unknown>[],
   headers?: { key: string; label: string }[],
-  summary?: { label: string; value: string }[]
+  summary?: { label: string; value: string }[],
 ) {
   if (!data || data.length === 0) {
     throw new Error("No data to export");
@@ -122,7 +118,7 @@ export function exportToPDF(
         .logo-icon {
           width: 50px;
           height: 50px;
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          background: linear-linear(135deg, #10b981 0%, #059669 100%);
           border-radius: 12px;
           display: flex;
           align-items: center;
@@ -219,12 +215,15 @@ export function exportToPDF(
         </div>
         <div class="report-info">
           <div class="report-title">${title}</div>
-          <div class="report-date">Dicetak: ${new Date().toLocaleDateString("id-ID", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}</div>
+          <div class="report-date">Dicetak: ${new Date().toLocaleDateString(
+            "id-ID",
+            {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            },
+          )}</div>
         </div>
       </div>
       
@@ -239,7 +238,7 @@ export function exportToPDF(
               <div class="summary-label">${s.label}</div>
               <div class="summary-value">${s.value}</div>
             </div>
-          `
+          `,
             )
             .join("")}
         </div>
@@ -262,7 +261,7 @@ export function exportToPDF(
               <td>${index + 1}</td>
               ${keys.map((key) => `<td>${formatValue(row[key])}</td>`).join("")}
             </tr>
-          `
+          `,
             )
             .join("")}
         </tbody>
@@ -291,7 +290,7 @@ export function exportToPDF(
  */
 export function exportSimpleReport(
   title: string,
-  sections: { title: string; items: { label: string; value: string }[] }[]
+  sections: { title: string; items: { label: string; value: string }[] }[],
 ) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -326,7 +325,7 @@ export function exportSimpleReport(
         .logo-icon {
           width: 50px;
           height: 50px;
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          background: linear-linear(135deg, #10b981 0%, #059669 100%);
           border-radius: 12px;
           display: flex;
           align-items: center;
@@ -402,12 +401,15 @@ export function exportSimpleReport(
         </div>
         <div>
           <div class="report-title">${title}</div>
-          <div class="report-date">Dicetak: ${new Date().toLocaleDateString("id-ID", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}</div>
+          <div class="report-date">Dicetak: ${new Date().toLocaleDateString(
+            "id-ID",
+            {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            },
+          )}</div>
         </div>
       </div>
 
@@ -423,11 +425,11 @@ export function exportSimpleReport(
               <span class="item-label">${item.label}</span>
               <span class="item-value">${item.value}</span>
             </div>
-          `
+          `,
             )
             .join("")}
         </div>
-      `
+      `,
         )
         .join("")}
 

@@ -6,18 +6,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cartApi } from "@/lib/api";
 import { Cart } from "@/lib/types";
-
-import Toast from "@/components/shared/Toast";
+import { toast } from "@/lib/toast";
 
 export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingItems, setUpdatingItems] = useState<string[]>([]);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -62,10 +57,7 @@ export default function CartPage() {
 
       // Notify navbar to update cart count
       window.dispatchEvent(new Event("cart-updated"));
-      setToast({
-        message: "Jumlah produk berhasil diperbarui",
-        type: "success",
-      });
+      toast.success("Jumlah produk berhasil diperbarui");
     } catch (error: unknown) {
       console.error("Failed to update quantity:", error);
       const errorMessage =
@@ -80,10 +72,7 @@ export default function CartPage() {
         "message" in error.response.data
           ? String(error.response.data.message)
           : "Gagal mengupdate keranjang";
-      setToast({
-        message: errorMessage,
-        type: "error",
-      });
+      toast.error(errorMessage);
     } finally {
       setUpdatingItems((prev) => prev.filter((id) => id !== itemId));
     }
@@ -108,10 +97,7 @@ export default function CartPage() {
         "message" in error.response.data
           ? String(error.response.data.message)
           : "Gagal menghapus item";
-      setToast({
-        message: errorMessage,
-        type: "error",
-      });
+      toast.error(errorMessage);
     } finally {
       setUpdatingItems((prev) => prev.filter((id) => id !== itemId));
     }
@@ -383,14 +369,6 @@ export default function CartPage() {
           </div>
         )}
       </main>
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   );
 }
