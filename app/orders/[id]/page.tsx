@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ordersApi } from "@/lib/api";
-import { Order } from "@/lib/types";
+import { ordersApi, paymentApi } from "@/lib/api";
+import { Order, OrderItem, Shipment } from "@/lib/types";
+import { toast } from "@/lib/toast";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -13,6 +14,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -23,7 +25,7 @@ export default function OrderDetailPage() {
     if (params.id) {
       fetchOrderDetail(params.id as string);
     }
-  }, [params.id]);
+  }, [params.id, router]);
 
   const fetchOrderDetail = async (id: string) => {
     try {
@@ -57,10 +59,100 @@ export default function OrderDetailPage() {
       }
 
       setOrder(orderData);
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { message?: string; error?: string } };
+        message?: string;
+      };
       setError(err.response?.data?.message || "Gagal memuat detail pesanan");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePayNow = async () => {
+    if (!order?.checkout_id) return;
+
+    try {
+      setProcessingPayment(true);
+      setError("");
+
+      // Create payment for existing checkout
+      const response = await paymentApi.create({
+        checkout_id: order.checkout_id,
+      });
+      const { invoice_url } = response.data.data;
+
+      if (invoice_url) {
+        // Open Xendit payment page
+        const paymentWindow = window.open(invoice_url, "_blank");
+
+        let windowClosed = false;
+        let paymentCompleted = false;
+
+        // Check if window is closed
+        const windowCheckInterval = setInterval(() => {
+          if (paymentWindow && paymentWindow.closed && !paymentCompleted) {
+            windowClosed = true;
+            clearInterval(windowCheckInterval);
+            clearInterval(pollInterval);
+            setProcessingPayment(false);
+            toast.error("Pembayaran dibatalkan. Silakan coba lagi.");
+          }
+        }, 500);
+
+        // Poll payment status
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await paymentApi.getStatus(
+              order.checkout_id,
+            );
+            const status = statusResponse.data.data.transaction_status;
+
+            if (status === "PAID" || status === "SETTLED") {
+              paymentCompleted = true;
+              clearInterval(pollInterval);
+              clearInterval(windowCheckInterval);
+              setProcessingPayment(false);
+              if (paymentWindow && !paymentWindow.closed) {
+                paymentWindow.close();
+              }
+              // Refresh order detail
+              fetchOrderDetail(params.id as string);
+              router.push("/payment/success");
+            } else if (status === "EXPIRED" || status === "FAILED") {
+              clearInterval(pollInterval);
+              clearInterval(windowCheckInterval);
+              setProcessingPayment(false);
+              toast.error("Pembayaran gagal atau kadaluarsa");
+            }
+          } catch (error) {
+            console.error("Error polling payment status:", error);
+          }
+        }, 3000);
+
+        // Stop polling after 10 minutes
+        setTimeout(() => {
+          if (!paymentCompleted) {
+            clearInterval(pollInterval);
+            clearInterval(windowCheckInterval);
+            setProcessingPayment(false);
+            if (!windowClosed) {
+              toast.error("Waktu pembayaran habis. Silakan coba lagi.");
+            }
+          }
+        }, 600000);
+      }
+    } catch (err: unknown) {
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      console.error("Payment error:", error);
+      toast.error(
+        error.response?.data?.message || "Gagal memproses pembayaran",
+      );
+      setProcessingPayment(false);
     }
   };
 
@@ -302,7 +394,7 @@ export default function OrderDetailPage() {
                   </svg>
                 )}
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-bold text-lg mb-1">
                   {getStatusLabel(order.status)}
                 </h3>
@@ -407,7 +499,7 @@ export default function OrderDetailPage() {
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                             index <= currentStep
-                              ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-200 scale-110"
+                              ? "bg-emerald-500 border-emerald-500 text-white shadow-lg  scale-110"
                               : "bg-white border-gray-200 text-gray-300"
                           }`}
                         >
@@ -444,57 +536,61 @@ export default function OrderDetailPage() {
 
               {/* Display all items in this order */}
               <div className="space-y-4">
-                {(order.items || [order]).map((item: any, index: number) => (
-                  <div
-                    key={item.id || `${order.id}-${index}`}
-                    className="flex gap-4 items-start py-4 border-t border-gray-100 first:border-t-0"
-                  >
-                    <div className="relative w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                      <Image
-                        src={
-                          item.product?.image_url ||
-                          order.product?.image_url ||
-                          "https://via.placeholder.com/150?text=No+Image"
-                        }
-                        alt={
-                          item.product?.name || order.product?.name || "Product"
-                        }
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 text-lg">
-                        {item.product?.name || order.product?.name}
-                      </h4>
-                      <p className="text-gray-500 text-sm mt-1">
-                        {item.quantity || order.quantity} x Rp{" "}
-                        {(item.price_each || order.price_each)?.toLocaleString(
-                          "id-ID",
-                        )}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
-                          Berat:{" "}
-                          {((item.product?.weight ||
-                            order.product?.weight ||
-                            0) *
-                            (item.quantity || order.quantity)) /
-                            1000}{" "}
-                          kg
-                        </span>
+                {(order.items || [order]).map(
+                  (item: OrderItem | Order, index: number) => (
+                    <div
+                      key={item.id || `${order.id}-${index}`}
+                      className="flex gap-4 items-start py-4 border-t border-gray-100 first:border-t-0"
+                    >
+                      <div className="relative w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                        <Image
+                          src={
+                            item.product?.image_url ||
+                            order.product?.image_url ||
+                            "https://via.placeholder.com/150?text=No+Image"
+                          }
+                          alt={
+                            item.product?.name ||
+                            order.product?.name ||
+                            "Product"
+                          }
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 text-lg">
+                          {item.product?.name || order.product?.name}
+                        </h4>
+                        <p className="text-gray-500 text-sm mt-1">
+                          {item.quantity || order.quantity} x Rp{" "}
+                          {(
+                            item.price_each || order.price_each
+                          )?.toLocaleString("id-ID")}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                            Berat:{" "}
+                            {((item.product?.weight ||
+                              order.product?.weight ||
+                              0) *
+                              (item.quantity || order.quantity)) /
+                              1000}{" "}
+                            kg
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-emerald-600 text-lg">
+                          Rp{" "}
+                          {(
+                            item.total_price || order.total_price
+                          )?.toLocaleString("id-ID")}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-emerald-600 text-lg">
-                        Rp{" "}
-                        {(
-                          item.total_price || order.total_price
-                        )?.toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             </div>
 
@@ -509,7 +605,7 @@ export default function OrderDetailPage() {
                   {/* Show shipping for first item - assuming all items in a checkout ship together */}
                   {order.items[0]?.shipments &&
                     order.items[0].shipments.length > 0 &&
-                    order.items[0].shipments.map((shipment: any) => (
+                    order.items[0].shipments.map((shipment: Shipment) => (
                       <div key={shipment.id} className="space-y-4">
                         <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
                           <div>
@@ -624,8 +720,57 @@ export default function OrderDetailPage() {
 
               <div className="space-y-3">
                 {order.status === "pending" && (
-                  <button className="w-full bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 font-medium shadow-lg shadow-emerald-600/20 transition-colors">
-                    Bayar Sekarang
+                  <button
+                    onClick={handlePayNow}
+                    disabled={processingPayment}
+                    className={`mt-4 inline-flex items-center px-6 py-3 align-center justify-center w-full border border-transparent text-base font-medium rounded-xl text-white transition-all shadow-lg ${
+                      processingPayment
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 hover:shadow-emerald-700/30"
+                    }`}
+                  >
+                    {processingPayment ? (
+                      <>
+                        <svg
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Memproses...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                          />
+                        </svg>
+                        Bayar Sekarang
+                      </>
+                    )}
                   </button>
                 )}
                 {order.status === "completed" && (

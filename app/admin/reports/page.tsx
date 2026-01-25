@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import { dashboardApi, productsApi, userApi } from "@/lib/api";
 import Toast from "@/components/shared/Toast";
-import {
-  exportToCSV,
-  exportSimpleReport,
-} from "@/lib/utils/export";
+import { exportToCSV, exportSimpleReport } from "@/lib/utils/export";
 
 interface ReportData {
   salesReport: {
@@ -54,6 +51,8 @@ export default function AdminReportsPage() {
   const fetchReportData = async () => {
     try {
       setLoading(true);
+      // Clear previous data to ensure chart re-renders with fresh data
+      setReportData(null);
 
       // Fetch dashboard stats for sales data
       const dashboardRes = await dashboardApi.getAdminStats();
@@ -80,16 +79,15 @@ export default function AdminReportsPage() {
       const newUsersThisMonth = users.filter((u) => {
         const created = new Date(u.created_at);
         return (
-          created.getMonth() === thisMonth &&
-          created.getFullYear() === thisYear
+          created.getMonth() === thisMonth && created.getFullYear() === thisYear
         );
       }).length;
 
       const lowStockProducts = products.filter(
-        (p: { stock: number }) => p.stock > 0 && p.stock <= 10
+        (p: { stock: number }) => p.stock > 0 && p.stock <= 10,
       ).length;
       const outOfStockProducts = products.filter(
-        (p: { stock: number }) => p.stock === 0
+        (p: { stock: number }) => p.stock === 0,
       ).length;
 
       setReportData({
@@ -107,8 +105,12 @@ export default function AdminReportsPage() {
         },
         userReport: {
           totalUsers: stats.summary?.totalUsers || users.length,
-          totalBuyers: stats.summary?.totalBuyers || users.filter((u) => u.role === "buyer").length,
-          totalSellers: stats.summary?.totalSellers || users.filter((u) => u.role === "seller").length,
+          totalBuyers:
+            stats.summary?.totalBuyers ||
+            users.filter((u) => u.role === "buyer").length,
+          totalSellers:
+            stats.summary?.totalSellers ||
+            users.filter((u) => u.role === "seller").length,
           newUsersThisMonth,
         },
       });
@@ -139,12 +141,12 @@ export default function AdminReportsPage() {
 
       if (activeReport === "sales") {
         // Export Sales Report
-        const salesData = Object.entries(reportData.salesReport.ordersByStatus).map(
-          ([status, count]) => ({
-            status: status.charAt(0).toUpperCase() + status.slice(1),
-            jumlah: count,
-          })
-        );
+        const salesData = Object.entries(
+          reportData.salesReport.ordersByStatus,
+        ).map(([status, count]) => ({
+          status: status.charAt(0).toUpperCase() + status.slice(1),
+          jumlah: count,
+        }));
 
         if (format === "csv") {
           exportToCSV(salesData, `laporan-penjualan-${dateRange}`, [
@@ -156,43 +158,67 @@ export default function AdminReportsPage() {
             {
               title: "Ringkasan Penjualan",
               items: [
-                { label: "Total Pendapatan", value: formatCurrency(reportData.salesReport.totalRevenue) },
-                { label: "Total Pesanan", value: reportData.salesReport.totalOrders.toString() },
-                { label: "Rata-rata Pesanan", value: formatCurrency(reportData.salesReport.averageOrderValue) },
+                {
+                  label: "Total Pendapatan",
+                  value: formatCurrency(reportData.salesReport.totalRevenue),
+                },
+                {
+                  label: "Total Pesanan",
+                  value: reportData.salesReport.totalOrders.toString(),
+                },
+                {
+                  label: "Rata-rata Pesanan",
+                  value: formatCurrency(
+                    reportData.salesReport.averageOrderValue,
+                  ),
+                },
               ],
             },
             {
               title: "Status Pesanan",
-              items: Object.entries(reportData.salesReport.ordersByStatus).map(([status, count]) => ({
-                label: status.charAt(0).toUpperCase() + status.slice(1),
-                value: count.toString(),
-              })),
+              items: Object.entries(reportData.salesReport.ordersByStatus).map(
+                ([status, count]) => ({
+                  label: status.charAt(0).toUpperCase() + status.slice(1),
+                  value: count.toString(),
+                }),
+              ),
             },
           ]);
         }
       } else if (activeReport === "products") {
         // Export Products Report
-        const productData = reportData.productReport.topProducts.map((p, index) => ({
-          no: index + 1,
-          nama: p.name,
-          terjual: p.sold,
-          pendapatan: p.revenue,
-        }));
+        const productData = reportData.productReport.topProducts.map(
+          (p, index) => ({
+            no: index + 1,
+            nama: p.name,
+            terjual: p.sold,
+            pendapatan: p.revenue,
+          }),
+        );
 
         if (format === "csv") {
           if (productData.length === 0) {
             // If no top products, create summary data
             exportToCSV(
               [
-                { metrik: "Total Produk", nilai: reportData.productReport.totalProducts },
-                { metrik: "Stok Rendah", nilai: reportData.productReport.lowStockProducts },
-                { metrik: "Stok Habis", nilai: reportData.productReport.outOfStockProducts },
+                {
+                  metrik: "Total Produk",
+                  nilai: reportData.productReport.totalProducts,
+                },
+                {
+                  metrik: "Stok Rendah",
+                  nilai: reportData.productReport.lowStockProducts,
+                },
+                {
+                  metrik: "Stok Habis",
+                  nilai: reportData.productReport.outOfStockProducts,
+                },
               ],
               `laporan-produk-${dateRange}`,
               [
                 { key: "metrik", label: "Metrik" },
                 { key: "nilai", label: "Nilai" },
-              ]
+              ],
             );
           } else {
             exportToCSV(productData, `laporan-produk-${dateRange}`, [
@@ -207,9 +233,18 @@ export default function AdminReportsPage() {
             {
               title: "Ringkasan Produk",
               items: [
-                { label: "Total Produk", value: reportData.productReport.totalProducts.toString() },
-                { label: "Stok Rendah (≤10)", value: reportData.productReport.lowStockProducts.toString() },
-                { label: "Stok Habis", value: reportData.productReport.outOfStockProducts.toString() },
+                {
+                  label: "Total Produk",
+                  value: reportData.productReport.totalProducts.toString(),
+                },
+                {
+                  label: "Stok Rendah (≤10)",
+                  value: reportData.productReport.lowStockProducts.toString(),
+                },
+                {
+                  label: "Stok Habis",
+                  value: reportData.productReport.outOfStockProducts.toString(),
+                },
               ],
             },
           ]);
@@ -219,7 +254,10 @@ export default function AdminReportsPage() {
         const userData = [
           { kategori: "Pembeli", jumlah: reportData.userReport.totalBuyers },
           { kategori: "Penjual", jumlah: reportData.userReport.totalSellers },
-          { kategori: "Pengguna Baru (Bulan Ini)", jumlah: reportData.userReport.newUsersThisMonth },
+          {
+            kategori: "Pengguna Baru (Bulan Ini)",
+            jumlah: reportData.userReport.newUsersThisMonth,
+          },
         ];
 
         if (format === "csv") {
@@ -232,10 +270,22 @@ export default function AdminReportsPage() {
             {
               title: "Ringkasan Pengguna",
               items: [
-                { label: "Total Pengguna", value: reportData.userReport.totalUsers.toString() },
-                { label: "Total Pembeli", value: reportData.userReport.totalBuyers.toString() },
-                { label: "Total Penjual", value: reportData.userReport.totalSellers.toString() },
-                { label: "Pengguna Baru Bulan Ini", value: reportData.userReport.newUsersThisMonth.toString() },
+                {
+                  label: "Total Pengguna",
+                  value: reportData.userReport.totalUsers.toString(),
+                },
+                {
+                  label: "Total Pembeli",
+                  value: reportData.userReport.totalBuyers.toString(),
+                },
+                {
+                  label: "Total Penjual",
+                  value: reportData.userReport.totalSellers.toString(),
+                },
+                {
+                  label: "Pengguna Baru Bulan Ini",
+                  value: reportData.userReport.newUsersThisMonth.toString(),
+                },
               ],
             },
           ]);
@@ -486,7 +536,7 @@ export default function AdminReportsPage() {
                       </p>
                       <p className="text-2xl font-bold text-gray-900 mt-1">
                         {formatCurrency(
-                          reportData.salesReport.averageOrderValue
+                          reportData.salesReport.averageOrderValue,
                         )}
                       </p>
                     </div>

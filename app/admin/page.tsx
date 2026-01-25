@@ -150,6 +150,9 @@ export default function AdminDashboard(): React.ReactElement {
   const fetchAllData = async (): Promise<void> => {
     try {
       setLoading(true);
+      // Clear previous data to ensure chart re-renders with fresh data
+      setStats(null);
+
       const response = await dashboardApi.getAdminStats();
       const data = response.data.data;
       setStats(data);
