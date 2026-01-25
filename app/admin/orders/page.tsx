@@ -38,7 +38,10 @@ export default function AdminOrdersPage() {
       setOrders(ordersData);
     } catch (error: unknown) {
       console.error("Failed to fetch orders:", error);
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       console.error("Error response:", err.response?.data);
       setToast({ message: "Gagal memuat pesanan", type: "error" });
     } finally {
@@ -57,15 +60,38 @@ export default function AdminOrdersPage() {
       return;
     }
 
-    if (!confirm(`Ubah status pesanan menjadi ${getStatusLabel(newStatus)}?`)) return;
+    if (!confirm(`Ubah status pesanan menjadi ${getStatusLabel(newStatus)}?`))
+      return;
 
     try {
-      await ordersApi.updateStatus(orderId, { status: newStatus });
-      setToast({ message: "Status pesanan diperbarui", type: "success" });
+      console.log("Updating order Status: ", { orderId, newStatus });
+      const response = await ordersApi.updateStatus(orderId, {
+        status: newStatus,
+      });
+      console.log("update status", response);
+      setToast({
+        message: "Status Pesanan Berhasil Diperbaharui",
+        type: "success",
+      });
       fetchOrders();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to update status:", error);
-      setToast({ message: "Gagal memperbarui status", type: "error" });
+      const err = error as {
+        response?: { data?: { message?: string; error?: string } };
+        message?: string;
+      };
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Gagal Memperbarui Status";
+      setToast({ message: `Error ${errorMsg}`, type: "error" });
+
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        console.log("Current User :", user.role);
+      }
     }
   };
 
@@ -105,8 +131,15 @@ export default function AdminOrdersPage() {
     try {
       const exportData = filteredOrders.map((order, index) => {
         const items = order.items || [];
-        const productNames = items.map((item: OrderItem) => item.product?.name || "Produk tidak tersedia").join(", ");
-        const totalQuantity = items.reduce((sum: number, item: OrderItem) => sum + (item.quantity || 0), 0);
+        const productNames = items
+          .map(
+            (item: OrderItem) => item.product?.name || "Produk tidak tersedia",
+          )
+          .join(", ");
+        const totalQuantity = items.reduce(
+          (sum: number, item: OrderItem) => sum + (item.quantity || 0),
+          0,
+        );
         return {
           no: index + 1,
           id_pesanan: order.id.substring(0, 8),
@@ -120,16 +153,20 @@ export default function AdminOrdersPage() {
       });
 
       if (format === "csv") {
-        exportToCSV(exportData, `pesanan-${filterStatus}-${new Date().toISOString().split("T")[0]}`, [
-          { key: "no", label: "No" },
-          { key: "id_pesanan", label: "ID Pesanan" },
-          { key: "pelanggan", label: "Pelanggan" },
-          { key: "produk", label: "Produk" },
-          { key: "jumlah", label: "Jumlah" },
-          { key: "total", label: "Total (Rp)" },
-          { key: "status", label: "Status" },
-          { key: "tanggal", label: "Tanggal" },
-        ]);
+        exportToCSV(
+          exportData,
+          `pesanan-${filterStatus}-${new Date().toISOString().split("T")[0]}`,
+          [
+            { key: "no", label: "No" },
+            { key: "id_pesanan", label: "ID Pesanan" },
+            { key: "pelanggan", label: "Pelanggan" },
+            { key: "produk", label: "Produk" },
+            { key: "jumlah", label: "Jumlah" },
+            { key: "total", label: "Total (Rp)" },
+            { key: "status", label: "Status" },
+            { key: "tanggal", label: "Tanggal" },
+          ],
+        );
       } else {
         exportToPDF(
           `Laporan Pesanan - ${filterStatus === "all" ? "Semua" : getStatusLabel(filterStatus)}`,
@@ -145,12 +182,28 @@ export default function AdminOrdersPage() {
           ],
           [
             { label: "Total Pesanan", value: filteredOrders.length.toString() },
-            { label: "Total Nilai", value: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(filteredOrders.reduce((sum, o) => sum + (o.checkout?.grand_total || o.grand_total || 0), 0)) },
-          ]
+            {
+              label: "Total Nilai",
+              value: new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+                minimumFractionDigits: 0,
+              }).format(
+                filteredOrders.reduce(
+                  (sum, o) =>
+                    sum + (o.checkout?.grand_total || o.grand_total || 0),
+                  0,
+                ),
+              ),
+            },
+          ],
         );
       }
 
-      setToast({ message: `Data pesanan berhasil diekspor ke ${format.toUpperCase()}`, type: "success" });
+      setToast({
+        message: `Data pesanan berhasil diekspor ke ${format.toUpperCase()}`,
+        type: "success",
+      });
     } catch (error) {
       console.error("Export error:", error);
       setToast({ message: "Gagal mengekspor data", type: "error" });
@@ -176,7 +229,7 @@ export default function AdminOrdersPage() {
   const filteredOrders =
     filterStatus === "all"
       ? orders
-      : orders.filter((order) => order.status === filterStatus);
+      : orders.filter((order) => getOrderStatus(order) === filterStatus);
 
   const getStatusBadgeClass = (status: string) => {
     const classes: Record<string, string> = {
@@ -204,6 +257,16 @@ export default function AdminOrdersPage() {
     return labels[status] || status;
   };
 
+  // Helper function to get actual order status from items
+  const getOrderStatus = (order: Order): string => {
+    // If order has items, use the first item's status (actual order status)
+    if (order.items && order.items.length > 0) {
+      return order.items[0].status;
+    }
+    // Fallback to checkout status
+    return order.status;
+  };
+
   const courierOptions = [
     "JNE",
     "J&T Express",
@@ -223,15 +286,27 @@ export default function AdminOrdersPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manajemen Pesanan</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Manajemen Pesanan
+            </h1>
             <p className="text-gray-500 mt-1">
               Pantau dan kelola status pesanan pelanggan Anda
             </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
               </svg>
               <select
                 value={filterStatus}
@@ -245,8 +320,18 @@ export default function AdminOrdersPage() {
                 <option value="completed">Selesai</option>
                 <option value="cancelled">Dibatalkan</option>
               </select>
-              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </div>
             {/* Export Buttons */}
@@ -254,8 +339,18 @@ export default function AdminOrdersPage() {
               onClick={() => handleExportOrders("csv")}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
               </svg>
               CSV
             </button>
@@ -263,8 +358,18 @@ export default function AdminOrdersPage() {
               onClick={() => handleExportOrders("pdf")}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
               </svg>
               PDF
             </button>
@@ -283,25 +388,27 @@ export default function AdminOrdersPage() {
           },
           {
             label: "Pending",
-            count: orders.filter((o) => o.status === "pending").length,
+            count: orders.filter((o) => getOrderStatus(o) === "pending").length,
             bgColor: "bg-amber-50",
             textColor: "text-amber-600",
           },
           {
             label: "Diproses",
-            count: orders.filter((o) => o.status === "processed").length,
+            count: orders.filter((o) => getOrderStatus(o) === "processed")
+              .length,
             bgColor: "bg-blue-50",
             textColor: "text-blue-600",
           },
           {
             label: "Dikirim",
-            count: orders.filter((o) => o.status === "shipped").length,
+            count: orders.filter((o) => getOrderStatus(o) === "shipped").length,
             bgColor: "bg-purple-50",
             textColor: "text-purple-600",
           },
           {
             label: "Selesai",
-            count: orders.filter((o) => o.status === "completed").length,
+            count: orders.filter((o) => getOrderStatus(o) === "completed")
+              .length,
             bgColor: "bg-emerald-50",
             textColor: "text-emerald-600",
           },
@@ -419,7 +526,7 @@ export default function AdminOrdersPage() {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
-                              }
+                              },
                             )}
                           </p>
                         </div>
@@ -439,7 +546,7 @@ export default function AdminOrdersPage() {
                           {(() => {
                             const items = order.items || [];
                             const itemsArray = items as OrderItem[];
-                            
+
                             if (itemsArray.length === 0) {
                               return (
                                 <div className="text-sm text-gray-500">
@@ -447,7 +554,7 @@ export default function AdminOrdersPage() {
                                 </div>
                               );
                             }
-                            
+
                             // Single item
                             if (itemsArray.length === 1) {
                               const item = itemsArray[0];
@@ -465,40 +572,51 @@ export default function AdminOrdersPage() {
                                   )}
                                   <div>
                                     <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                                      {item.product?.name || "Produk tidak tersedia"}
+                                      {item.product?.name ||
+                                        "Produk tidak tersedia"}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-0.5">
                                       {item.quantity || 0} item × Rp{" "}
-                                      {(item.price_each || 0).toLocaleString("id-ID")}
+                                      {(item.price_each || 0).toLocaleString(
+                                        "id-ID",
+                                      )}
                                     </p>
                                   </div>
                                 </>
                               );
                             }
-                            
+
                             // Multiple items
                             return (
                               <div className="flex items-center gap-2">
                                 <div className="flex -space-x-2">
-                                  {itemsArray.slice(0, 3).map((item, idx) => (
-                                    item.product?.image_url && (
-                                      <div key={idx} className="relative w-10 h-10 rounded-lg overflow-hidden bg-white border-2 border-white shrink-0">
-                                        <Image
-                                          src={item.product.image_url}
-                                          alt={item.product.name}
-                                          fill
-                                          className="object-cover"
-                                        />
-                                      </div>
-                                    )
-                                  ))}
+                                  {itemsArray.slice(0, 3).map(
+                                    (item, idx) =>
+                                      item.product?.image_url && (
+                                        <div
+                                          key={idx}
+                                          className="relative w-10 h-10 rounded-lg overflow-hidden bg-white border-2 border-white shrink-0"
+                                        >
+                                          <Image
+                                            src={item.product.image_url}
+                                            alt={item.product.name}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        </div>
+                                      ),
+                                  )}
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium text-gray-900">
                                     {itemsArray.length} Produk
                                   </p>
                                   <p className="text-xs text-gray-500 mt-0.5">
-                                    {itemsArray.reduce((sum, item) => sum + (item.quantity || 0), 0)} item total
+                                    {itemsArray.reduce(
+                                      (sum, item) => sum + (item.quantity || 0),
+                                      0,
+                                    )}{" "}
+                                    item total
                                   </p>
                                 </div>
                               </div>
@@ -508,16 +626,21 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm font-bold text-gray-900">
-                          Rp {(order.checkout?.grand_total || order.grand_total || 0).toLocaleString("id-ID")}
+                          Rp{" "}
+                          {(
+                            order.checkout?.grand_total ||
+                            order.grand_total ||
+                            0
+                          ).toLocaleString("id-ID")}
                         </p>
                       </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
-                            order.status
+                            getOrderStatus(order),
                           )}`}
                         >
-                          {getStatusLabel(order.status)}
+                          {getStatusLabel(getOrderStatus(order))}
                         </span>
                         {order.shipments && order.shipments[0] && (
                           <p className="text-xs text-gray-500 mt-1">
@@ -561,13 +684,13 @@ export default function AdminOrdersPage() {
                             </svg>
                           </button>
                           <select
-                            value={order.status}
+                            value={getOrderStatus(order)}
                             onChange={(e) =>
                               handleStatusChange(order.id, e.target.value)
                             }
                             disabled={
-                              order.status === "cancelled" ||
-                              order.status === "completed"
+                              getOrderStatus(order) === "cancelled" ||
+                              getOrderStatus(order) === "completed"
                             }
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500 bg-white font-medium"
                           >
@@ -597,9 +720,7 @@ export default function AdminOrdersPage() {
             {/* Modal Header */}
             <div className="sticky top-0 bg-linear-to-r from-emerald-600 to-green-600 px-6 py-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-white">
-                  Detail Pesanan
-                </h2>
+                <h2 className="text-lg font-bold text-white">Detail Pesanan</h2>
                 <p className="text-sm text-emerald-100">
                   #{selectedOrder.id.substring(0, 8).toUpperCase()}
                 </p>
@@ -630,10 +751,10 @@ export default function AdminOrdersPage() {
               <div className="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <span
                   className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border shadow-sm ${getStatusBadgeClass(
-                    selectedOrder.status
+                    getOrderStatus(selectedOrder),
                   )}`}
                 >
-                  {getStatusLabel(selectedOrder.status)}
+                  {getStatusLabel(getOrderStatus(selectedOrder))}
                 </span>
                 <p className="text-sm text-gray-500">
                   {new Date(selectedOrder.created_at).toLocaleDateString(
@@ -644,7 +765,7 @@ export default function AdminOrdersPage() {
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
-                    }
+                    },
                   )}
                 </p>
               </div>
@@ -652,53 +773,84 @@ export default function AdminOrdersPage() {
               {/* Product Info */}
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  <svg
+                    className="w-5 h-5 text-emerald-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
                   </svg>
                   Produk Dibeli
                 </h3>
                 <div className="space-y-3">
-                  {(selectedOrder.items || []).map((item: OrderItem, index: number) => (
-                    <div key={item.id || index} className={`${index > 0 ? 'pt-4 mt-4 border-t border-gray-200' : ''}`}>
-                      <div className="flex items-start gap-4 hover:bg-gray-50 p-3 rounded-lg transition-colors">
-                        {item.product?.image_url && (
-                          <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-50 shrink-0 border-2 border-gray-200 shadow-sm">
-                            <Image
-                              src={item.product.image_url}
-                              alt={item.product?.name || "Produk"}
-                              fill
-                              className="object-cover rounded-lg"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-base">
-                            {item.product?.name || "Produk tidak tersedia"}
-                          </p>
-                          {item.product?.description && (
-                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
-                              {item.product.description}
-                            </p>
+                  {(selectedOrder.items || []).map(
+                    (item: OrderItem, index: number) => (
+                      <div
+                        key={item.id || index}
+                        className={`${index > 0 ? "pt-4 mt-4 border-t border-gray-200" : ""}`}
+                      >
+                        <div className="flex items-start gap-4 hover:bg-gray-50 p-3 rounded-lg transition-colors">
+                          {item.product?.image_url && (
+                            <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-50 shrink-0 border-2 border-gray-200 shadow-sm">
+                              <Image
+                                src={item.product.image_url}
+                                alt={item.product?.name || "Produk"}
+                                fill
+                                className="object-cover rounded-lg"
+                              />
+                            </div>
                           )}
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-gray-600">
-                              {item.quantity || 0} item × Rp {(item.price_each || 0).toLocaleString("id-ID")}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-sm text-gray-500">Subtotal:</span>
-                            <p className="text-lg font-bold text-emerald-600">
-                              Rp {(item.total_price || 0).toLocaleString("id-ID")}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-base">
+                              {item.product?.name || "Produk tidak tersedia"}
                             </p>
+                            {item.product?.description && (
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                                {item.product.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-sm text-gray-600">
+                                {item.quantity || 0} item × Rp{" "}
+                                {(item.price_each || 0).toLocaleString("id-ID")}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-sm text-gray-500">
+                                Subtotal:
+                              </span>
+                              <p className="text-lg font-bold text-emerald-600">
+                                Rp{" "}
+                                {(item.total_price || 0).toLocaleString(
+                                  "id-ID",
+                                )}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ),
+                  )}
                   {(selectedOrder.items || []).length === 0 && (
                     <div className="text-center py-8">
-                      <svg className="w-16 h-16 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      <svg
+                        className="w-16 h-16 text-gray-300 mx-auto mb-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                        />
                       </svg>
                       <p className="text-sm text-gray-500">
                         Tidak ada produk dalam pesanan ini
@@ -711,8 +863,18 @@ export default function AdminOrdersPage() {
               {/* Customer Info */}
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <svg
+                    className="w-5 h-5 text-emerald-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                   Informasi Pelanggan
                 </h3>
@@ -781,16 +943,31 @@ export default function AdminOrdersPage() {
                 selectedOrder.user.addresses.length > 0 && (
                   <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                     <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <svg
+                        className="w-5 h-5 text-emerald-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
                       </svg>
                       Alamat Pengiriman
                     </h3>
                     {(() => {
                       const address =
                         selectedOrder.user.addresses.find(
-                          (a) => a.is_default
+                          (a) => a.is_default,
                         ) || selectedOrder.user.addresses[0];
                       return (
                         <div className="space-y-1">
@@ -821,8 +998,18 @@ export default function AdminOrdersPage() {
                 selectedOrder.shipments.length > 0 && (
                   <div className="bg-white rounded-xl p-5 shadow-sm border-2 border-purple-200">
                     <h3 className="text-base font-bold text-purple-700 mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      <svg
+                        className="w-5 h-5 text-purple-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                        />
                       </svg>
                       Informasi Pengiriman
                     </h3>
@@ -880,29 +1067,58 @@ export default function AdminOrdersPage() {
               {selectedOrder.checkout && (
                 <div className="bg-white rounded-xl p-5 shadow-md border-2 border-emerald-300">
                   <h3 className="text-sm font-semibold text-emerald-800 mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
                     </svg>
                     Rincian Pembayaran
                   </h3>
                   <div className="space-y-2.5">
                     <div className="flex justify-between items-center text-sm py-2">
-                      <span className="text-gray-700 font-medium">Subtotal Produk</span>
+                      <span className="text-gray-700 font-medium">
+                        Subtotal Produk
+                      </span>
                       <span className="text-gray-900 font-semibold">
-                        Rp {(selectedOrder.items || []).reduce((sum: number, item: OrderItem) => sum + (item.total_price || 0), 0).toLocaleString("id-ID")}
+                        Rp{" "}
+                        {(selectedOrder.items || [])
+                          .reduce(
+                            (sum: number, item: OrderItem) =>
+                              sum + (item.total_price || 0),
+                            0,
+                          )
+                          .toLocaleString("id-ID")}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm py-2">
-                      <span className="text-gray-700 font-medium">Ongkos Kirim</span>
+                      <span className="text-gray-700 font-medium">
+                        Ongkos Kirim
+                      </span>
                       <span className="text-gray-900 font-semibold">
-                        Rp {(selectedOrder.checkout?.shipping_price || 0).toLocaleString("id-ID")}
+                        Rp{" "}
+                        {(
+                          selectedOrder.checkout?.shipping_price || 0
+                        ).toLocaleString("id-ID")}
                       </span>
                     </div>
                     <div className="border-t-2 border-gray-200 my-3"></div>
                     <div className="flex justify-between items-center py-3 bg-linear-to-r from-emerald-50 to-green-50 rounded-lg px-4 shadow-sm">
-                      <span className="text-gray-900 font-bold text-base">Total Pembayaran</span>
+                      <span className="text-gray-900 font-bold text-base">
+                        Total Pembayaran
+                      </span>
                       <span className="text-emerald-600 font-bold text-xl">
-                        Rp {(selectedOrder.checkout?.grand_total || 0).toLocaleString("id-ID")}
+                        Rp{" "}
+                        {(
+                          selectedOrder.checkout?.grand_total || 0
+                        ).toLocaleString("id-ID")}
                       </span>
                     </div>
                   </div>
@@ -929,9 +1145,7 @@ export default function AdminOrdersPage() {
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
             {/* Modal Header */}
             <div className="border-b border-gray-100 px-6 py-4">
-              <h2 className="text-lg font-bold text-gray-900">
-                Kirim Pesanan
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900">Kirim Pesanan</h2>
               <p className="text-sm text-gray-500">
                 Masukkan informasi pengiriman untuk pesanan #
                 {selectedOrder.id.substring(0, 8).toUpperCase()}
@@ -989,14 +1203,16 @@ export default function AdminOrdersPage() {
 
               {/* Order Summary */}
               <div className="bg-gray-50 rounded-xl p-4 mt-4">
-                <p className="text-sm text-gray-600">Pesanan akan dikirim ke:</p>
+                <p className="text-sm text-gray-600">
+                  Pesanan akan dikirim ke:
+                </p>
                 {selectedOrder.user?.addresses &&
                   selectedOrder.user.addresses.length > 0 && (
                     <div className="mt-2">
                       {(() => {
                         const address =
                           selectedOrder.user.addresses.find(
-                            (a) => a.is_default
+                            (a) => a.is_default,
                           ) || selectedOrder.user.addresses[0];
                         return (
                           <div className="text-sm">

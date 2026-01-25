@@ -106,6 +106,9 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      // Clear previous data to ensure chart re-renders with fresh data
+      setStats(null);
+
       const response = await dashboardApi.getAdminStats();
       setStats(response.data.data);
 
